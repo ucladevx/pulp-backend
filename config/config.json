@@ -1,0 +1,27 @@
+{
+	"development": {
+		"config_id": "development",
+		"app_name": "pulp",
+		"port": 3000,
+		"json_indentation": 4,
+		"mongo_url": "mongodb://localhost:27017/",
+		"db": "pulp-dummy"
+	},
+	"testing": {
+		"config_id": "testing",
+		"mongo_url": "mongodb://localhost:27017/",
+		"db": "pulp-dummy"
+	},
+	"staging": {
+		"config_id": "staging",
+		"port": 8080,
+		"mongo_url": "mongodb://localhost:27017/",
+		"db": "pulp-dummy"
+	},
+	"production": {
+		"config_id": "production",
+		"port": 8080,
+		"mongo_url": "mongodb://localhost:27017/",
+		"db": "pulp-dummy"
+	}
+}
