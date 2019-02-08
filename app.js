@@ -4,6 +4,7 @@ const path = require('path');
 const app = express();
 
 //environment variable
+//make an actual environment variable
 process.env.NODE_ENV = 'development';
 
 const mongoHelper = require('./mongoHelper');
