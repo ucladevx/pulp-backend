@@ -2,6 +2,8 @@ const assert = require('assert');
 const MongoClient = require('mongodb').MongoClient;
 const config = require('./config/config');
 
+
+
 let db;
 module.exports = {
 	getDbConnection: function(callback) {
