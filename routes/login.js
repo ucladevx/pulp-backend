@@ -16,14 +16,15 @@ router.get('/', function(req, res) {
 })
 
 // For facebook authentication
-// TODO: Not currently working.
+// TODO: Not currently working. Insecure login error on Facebook
 passport.use(new FacebookStrategy({
 	clientID: FB_APP_ID,
 	clientSecret: FB_APP_SECRET,
-	callbackURL: 'http://localhost:'+global.gConfig.port+'login/auth/facebook/callback' // Add URL to callback later? Check if its same for IOS
+	callbackURL: 'https://localhost:'+global.gConfig.port+'/success' // Add URL to callback later? Check if its same for IOS
 	},
 	// Creates/finds FB profile and returns with callback
 	function(accessToken, refreshToken, profile, cb) {
+		console.log('here')
 		User.findOrCreate({facebookId: profile.id}, function(err,user) {
 			return cb(err, user);
 		});

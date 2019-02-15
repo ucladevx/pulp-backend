@@ -26,18 +26,19 @@ mongoHelper.getDbConnection(function(err) {
 	app.use('/login', loginRouter);
 	app.use('/success', successRouter);						// Used for Testing. Delete Later
 });
-/*
-const options = {
-	key: fs.readFileSync('./csr.pem', 'utf8'),
-	cert: fs.readFileSync('./server.crt', 'utf8'),
+
+const options = {											// trying to use this for HTTPS. Not currently working
+	key: fs.readFileSync('server.key'),
+	cert: fs.readFileSync('server.crt')
 };
 https
 	.createServer(options, app)
 	.listen(global.gConfig.port, function() {
 		console.log(`${global.gConfig.app_name} listening on port ${global.gConfig.port}`);
 	});
-*/
+/*
 app.listen(global.gConfig.port, () => {
 	console.log(`In ${global.gConfig.config_id} mode`);
 	console.log(`${global.gConfig.app_name} listening on port ${global.gConfig.port}`);
 });
+*/
