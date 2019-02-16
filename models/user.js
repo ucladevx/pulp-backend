@@ -21,22 +21,18 @@ const userSchema = new Schema({
 		required: true,
 	},
 	email: String,
-	accounts: [
-		{
-			kind: String, 		//facebook
-			uid: String
-		},
-		{
-			kind: String, 		//internal
-			username: String,
-			password: String
-		},
-		{
-			kind: String, 		//google
-			uid: String
-		}
-	]
-});
+	username: String,
+	facebook_login: String,
+	google_login: String,
+	internal_username: String,
+	internal_password: String
+},
+{collection:'users'});
+
+//CREATE THIS FUNCTION
+function findOrCreate(user_info) {
+	
+}
 
 const User = mongoose.model('User', userSchema);
 module.exports = User;
