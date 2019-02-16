@@ -5,9 +5,6 @@ const https = require('https');
 
 const app = express();
 
-//environment variable
-//make an actual environment variable
-
 const mongoHelper = require('./mongoHelper');
 const config = require('./config/config.js');
 
@@ -29,10 +26,11 @@ mongoHelper.getDbConnection(function(err) {
 	app.use('/success', successRouter);						// Used for Testing. Delete Later
 });
 
-const options = {											// trying to use this for HTTPS. Not currently working
+const options = {											// Used for certificate for HTTPS
 	key: fs.readFileSync('server.key'),
 	cert: fs.readFileSync('server.crt')
 };
+
 https
 	.createServer(options, app)
 	.listen(global.gConfig.port, function() {

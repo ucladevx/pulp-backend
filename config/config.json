@@ -5,23 +5,23 @@
 		"port": 3000,
 		"json_indentation": 4,
 		"mongo_url": "mongodb://localhost:27017/pulp",
-		"db": "pulp-dummy"
+		"db": "pulp"
 	},
 	"testing": {
 		"config_id": "testing",
 		"mongo_url": "mongodb://localhost:27017/pulp",
-		"db": "pulp-dummy"
+		"db": "pulp"
 	},
 	"staging": {
 		"config_id": "staging",
 		"port": 8080,
 		"mongo_url": "mongodb://localhost:27017/pulp",
-		"db": "pulp-dummy"
+		"db": "pulp"
 	},
 	"production": {
 		"config_id": "production",
 		"port": 8080,
 		"mongo_url": "mongodb://localhost:27017/pulp",
-		"db": "pulp-dummy"
+		"db": "pulp"
 	}
 }

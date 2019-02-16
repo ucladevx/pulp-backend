@@ -11,7 +11,7 @@ const reviewSubSchema = new Schema({
 });
 */
 
-const userSchema = new Schema({
+const UserSchema = new Schema({
 	first_name: {
 		type: String,
 		required: true,
@@ -29,10 +29,31 @@ const userSchema = new Schema({
 },
 {collection:'users'});
 
-//CREATE THIS FUNCTION
-function findOrCreate(user_info) {
-	
+// Creating user works. Add sessions later on inside both the else blocks.
+UserSchema.statics.findOrCreate = function(user_info, next) {
+	User.findOne({ facebook_login : user_info.facebook_login })
+		.exec(function(err, user) {
+			if (err) {
+				return next(err);
+			}
+			else if (!user) {
+				User.create(user_info, function(err, user) {
+					if (err) {
+						console.log(err)
+						console.log("Failed to create user");
+					}
+					else {
+						console.log("Created User");
+						return next();
+					}
+				});
+			}
+			else {
+				console.log("User exists")
+				return next();
+			}
+		});
 }
 
-const User = mongoose.model('User', userSchema);
+const User = mongoose.model('User', UserSchema);
 module.exports = User;
