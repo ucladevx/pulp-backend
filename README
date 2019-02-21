@@ -9,7 +9,7 @@ Switching between different Modes:
 
 Facebook App Secret, App ID is stored inside of an environment variable called FB_APP_SECRET, FB_APP_ID
 
-To get a signed certificate with SAN
+To get a signed certificate with SAN. This only works for localhost. Change localhost to URL for production
 	openssl genrsa -out ca.key 2048
 	openssl req -new -x509 -days 365 -key ca.key -subj "/C=CN/ST=GD/L=SZ/O=Acme, Inc./CN=Acme Root CA" -out ca.crt
 	openssl req -newkey rsa:2048 -nodes -keyout server.key -subj "/C=CN/ST=GD/L=SZ/O=Acme, Inc./CN=localhost" -out server.csr
