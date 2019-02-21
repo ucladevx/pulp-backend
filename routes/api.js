@@ -1,43 +1,38 @@
 const express = require('express');
 const router = express.Router();
 
-const mongoHelper = require('../mongoHelper');
-const ObjectId = require('mongodb').ObjectId; 
-
-const db = mongoHelper.getDb();
+const mongoose = require('mongoose');
+const User = require('../models/User');
+const Place = require('../models/Place');
+const Review = require('../models/Review');
 
 //Insert new user into database
 router.post('/new_user', (req, res) => {
-    let newUser = { name: req.body.name, email: req.body.email, age : req.body.age }
-    db.collection("users").insertOne(newUser, (err, obj) => {
-        if (err) {
-            res.status(500).send("Error in saving new user.");
-        } else {
-            console.log('asdjflkds', obj.ops);
-            res.send(`New user ${obj.ops[0]._id} has been saved.`);
-        }
+    let newUser = new User({
+        name: req.body.name,
+        email: req.body.email,
+        dateJoined: Date.now()
+    })
+    newUser.save((err, user) => {
+        if (err) res.status(500).send("Error saving user");
+        console.log("saved new user");
+        res.send(`New user ${user._id} has been saved.`);
     })
 })
 
 //Find user by ID
 router.get('/find_user/:user_id', (req, res) => {
-    db.collection("users").findOne({ _id: ObjectId(req.params.user_id) }, (err, obj) => {
-        if (err) {
-            res.status(500).send("Error fetching user: " + err);
-        } else {
-            res.json(obj);
-        }
+    User.findById(req.params.user_id, (err, user) => {
+        if (err) res.status(500).send("Error finding user");
+        res.json(user);
     })
 })
 
 //Delete user by ID
 router.get('/delete_user/:user_id', (req, res) => {
-    db.collection("users").deleteOne({ _id: ObjectId(req.params.user_id) }, (err, obj) => {
-        if (err) {
-            res.status(500).send("Error deleting user: " + err);
-        } else {
-            res.send('User has been destroyed.');
-        }
+    User.remove({_id: req.params.user_id}, (err) => {
+        if (err) res.status(500).send("Error deleting user: " + err);
+        res.send('User has been destroyed.');
     })
 })
 
