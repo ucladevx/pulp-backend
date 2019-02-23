@@ -1,8 +1,0 @@
-/node_modules
-/ca.crt
-/ca.key
-/ca.srl
-/san.cnf
-/server.crt
-/server.csr
-/server.key

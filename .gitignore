@@ -1,7 +1,9 @@
 /node_modules
 /config/config.json
+/ca.crt
+/ca.key
+/ca.srl
+/san.cnf
 /server.crt
 /server.csr
 /server.key
-/ca.crt
-/ca.key
