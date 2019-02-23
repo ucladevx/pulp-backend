@@ -16,16 +16,6 @@ var ReviewSchema = new mongoose.Schema({
         ref: 'Place',
         index: true
     },
-    address: {
-        type: String,
-        index: true,
-        required: true
-    },
-    rating: {
-        type: Number,
-        min: 0, 
-        max: 5,
-    },
     body: {
         type: String,
         required: false

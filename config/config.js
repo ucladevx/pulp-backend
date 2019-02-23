@@ -5,6 +5,7 @@ const config = require('./config.json');
 
 const defaultConfig = config.development;
 const environment = process.env.NODE_ENV || "development";
+console.log(process.env.NODE_ENV);
 const environmentConfig = config[environment];
 const finalConfig = lodash.merge(defaultConfig, environmentConfig);		//union of default and env config.
 global.gConfig = finalConfig;
