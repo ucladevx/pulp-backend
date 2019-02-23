@@ -7,13 +7,13 @@ const User = require('../models/user');
 const router = express.Router();
 
 // Information Used for passport to connect with Facebook. Located at developers facebook.
-const FB_APP_ID = process.env.FB_APP_ID;
-const FB_APP_SECRET = process.env.FB_APP_SECRET;
+const FB_app_ID = process.env.FB_APP_ID;
+const FB_app_secret = process.env.FB_APP_SECRET;
 
 // For facebook authentication
 passport.use(new FacebookStrategy({
-	clientID: FB_APP_ID,
-	clientSecret: FB_APP_SECRET,
+	clientID: global.gConfig.FB_APP_ID,
+	clientSecret: global.gConfig.FB_APP_SECRET,
 	callbackURL: 'https://localhost:'+global.gConfig.port+'/auth/facebook/callback', 
 	profileFields: ['id', 'email', 'name'],
 	},
@@ -41,6 +41,7 @@ router.get('/', passport.authenticate('facebook', {scope: ['email']}));
 router.get('/callback', passport.authenticate('facebook', 
 	{ successRedirect: '/success',
 	failureRedirect: '/login',
+	failureFlash: true,
 	scope: 'email'}));
 
 module.exports = router;
