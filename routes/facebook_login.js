@@ -1,4 +1,3 @@
-const mongoose = require('mongoose');
 const express = require('express');
 const passport = require('passport');
 const FacebookStrategy = require('passport-facebook').Strategy;
@@ -11,7 +10,7 @@ passport.use(new FacebookStrategy({
 	clientID: global.gConfig.FB_APP_ID,
 	clientSecret: global.gConfig.FB_APP_SECRET,
 	callbackURL: 'https://localhost:'+global.gConfig.port+'/auth/facebook/callback', 
-	profileFields: ['id', 'email', 'name'],
+	profileFields: ['id', 'email', 'name', 'gender', 'birthday'],
 	},
 	// Creates/finds FB profile and returns with callback
 	function(accessToken, refreshToken, profile, done) {
@@ -19,6 +18,8 @@ passport.use(new FacebookStrategy({
 		let user_info = {
 			first_name: profile.name.givenName,
 			last_name: profile.name.familyName,
+			birthday: profile.birthday,				// TODO: birthday not working. 
+			gender: profile.gender,
 			email: profile.emails[0].value,
 			facebook_login: profile.id
 		}
@@ -27,13 +28,11 @@ passport.use(new FacebookStrategy({
 				console.log("got an error");
 				return done(err);
 			}
-			console.log(user);
 			done(null, user);
 		});
 	}
 ));
 
-//Not doing anything right now. Look up later on how to use properly.
 passport.serializeUser(function(user, done) {
 	console.log("serialize");
 	done(null, user.id);
@@ -46,22 +45,11 @@ passport.deserializeUser(function(id, done) {
 	});
 });
 
-router.get('/', passport.authenticate('facebook'));
+router.get('/', passport.authenticate('facebook', {scope: ['user_birthday', 'user_gender']}));
 
-// Always goes to failureRedirect. Figure out why
-router.get('/callback', function(req, res, next) {
-	passport.authenticate('facebook', function(err, user, info) {
-		if (err) {
-			console.log(err);
-			return next(err);
-		}
-		if (!user) {
-			console.log("no user");
-			return res.redirect('/login');
-		}
-		console.log('everything good');
-		return res.redirect('/success');
-	})(req, res, next);
-});
+router.get('/callback', passport.authenticate('facebook', {
+	successRedirect: '/success',
+	failureRedirect: '/login'
+}));
 
 module.exports = router;

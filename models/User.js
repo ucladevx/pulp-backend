@@ -19,12 +19,24 @@ var UserSchema = new mongoose.Schema({
 		type: String,
 		required: true,
 	},
-	email: String,
-	username: String,
+	birthday: {
+		type: String,
+		//required: true,
+	},
+	gender: {
+		type: String,
+		required: true,
+	},
+	email: {
+		type: String,
+		required: true,
+		unique: true,
+		lowercase: true,
+	},
 	facebook_login: String,
 	google_login: String,
-	internal_username: String,
-	internal_password: String
+	internal_password: String,
+	interests: [String]
 });
 
 //{collection:'users'}

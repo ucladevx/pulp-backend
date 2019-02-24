@@ -21,8 +21,9 @@ db.on('error', console.error.bind(console, 'conn error:'));
 
 //router
 const apiRouter = require('./routes/api');
+const createUserRouter = require('./routes/create_user');
 const loginRouter = require('./routes/login');
-const facebookRouter = require('./routes/facebook');
+const facebookRouter = require('./routes/facebook_login');
 const successRouter = require('./routes/success'); 		// Used for Testing. Delete Later
 
 app.set('views', path.join(__dirname, 'views'));		// Sets default view paths
@@ -39,6 +40,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(passport.session());
 
 app.use('/api', apiRouter);
+app.use('/create_user', createUserRouter);
 app.use('/login', loginRouter);
 app.use('/auth/facebook', facebookRouter);
 app.use('/success', successRouter);	
