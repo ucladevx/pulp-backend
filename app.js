@@ -3,6 +3,8 @@ const path = require('path');
 const fs = require('fs');
 const https = require('https');
 const mongoose = require('mongoose');
+const passport = require('passport');
+const session = require("express-session");
 
 const app = express();
 
@@ -26,8 +28,15 @@ const successRouter = require('./routes/success'); 		// Used for Testing. Delete
 app.set('views', path.join(__dirname, 'views'));		// Sets default view paths
 app.set('view engine', 'ejs');
 app.use(express.json());
+app.use(session({ 
+	secret: 'purple',
+	resave: false,
+	saveUninitialized: false,
+}))
+app.use(passport.initialize());
 app.use(express.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(passport.session());
 
 app.use('/api', apiRouter);
 app.use('/login', loginRouter);

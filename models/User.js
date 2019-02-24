@@ -44,13 +44,13 @@ UserSchema.statics.findOrCreate = function(user_info, next) {
 					}
 					else {
 						console.log("Created User");
-						return next();
+						return next(err, user);
 					}
 				});
 			}
 			else {
 				console.log("User exists")
-				return next();
+				return next(err, user);
 			}
 		});
 }
