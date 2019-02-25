@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const bcrypt = require('bcrypt');
 
 //Defining User Schema for Different types of login
 /*
@@ -35,11 +36,35 @@ var UserSchema = new mongoose.Schema({
 	},
 	facebook_login: String,
 	google_login: String,
-	internal_password: String,
+	password: String,
 	interests: [String]
 });
 
 //{collection:'users'}
+
+//Hash password before saving to MongoDb. create() calls the save() hook
+UserSchema.pre('save',  function(next) {
+	let user = this;
+	if (!user.isModified('password')) { 
+		return next(); 
+	}
+	bcrypt.hash(user.password, 10, function (err, hash) {
+		if (err) {
+			return next(err);
+		}
+		user.password = hash;
+		next();
+	});
+});
+
+UserSchema.methods.validPassword = async function(password) {
+	let user = this;
+	const match = await bcrypt.compare(password, user.password);
+	if (match) {
+		return true;
+	}
+	return false;
+}
 
 // Creating user works. Add sessions later on inside both the else blocks.
 UserSchema.statics.findOrCreate = function(user_info, next) {
@@ -52,7 +77,7 @@ UserSchema.statics.findOrCreate = function(user_info, next) {
 				User.create(user_info, function(err, user) {
 					if (err) {
 						console.log(err)
-						console.log("Failed to create user");
+						console.log("Failed to create user. Email registered with Facebook/Google already has an account");
 					}
 					else {
 						console.log("Created User");

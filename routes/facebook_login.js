@@ -33,18 +33,6 @@ passport.use(new FacebookStrategy({
 	}
 ));
 
-passport.serializeUser(function(user, done) {
-	console.log("serialize");
-	done(null, user.id);
-});
-
-passport.deserializeUser(function(id, done) {
-	console.log("deserialize");
-	User.findById(id, function(err, user) {
-		done(err, user);
-	});
-});
-
 router.get('/', passport.authenticate('facebook', {scope: ['user_birthday', 'user_gender']}));
 
 router.get('/callback', passport.authenticate('facebook', {
