@@ -22,6 +22,7 @@ const apiRouter = require('./routes/api');
 const loginRouter = require('./routes/login');
 const facebookRouter = require('./routes/facebook');
 const successRouter = require('./routes/success'); 		// Used for Testing. Delete Later
+coonst placesRouter = require('./routes/places');
 
 app.set('views', path.join(__dirname, 'views'));		// Sets default view paths
 app.set('view engine', 'ejs');
@@ -32,7 +33,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/api', apiRouter);
 app.use('/login', loginRouter);
 app.use('/auth/facebook', facebookRouter);
-app.use('/success', successRouter);	
+app.use('/success', successRouter);
+app.use('/places', placesRouter);
 
 //auth
 const options = {											// Used for certificate for HTTPS
