@@ -4,6 +4,7 @@ const fs = require('fs');
 const https = require('https');
 const mongoose = require('mongoose');
 const passport = require('passport');
+const flash = require('connect-flash');
 const session = require("express-session");
 
 const app = express();
@@ -24,6 +25,7 @@ const apiRouter = require('./routes/api');
 const createUserRouter = require('./routes/create_user');
 const loginRouter = require('./routes/login');
 const facebookRouter = require('./routes/facebook_login');
+const googleRouter = require('./routes/google_login');
 const successRouter = require('./routes/success'); 		// Used for Testing. Delete Later
 
 app.set('views', path.join(__dirname, 'views'));		// Sets default view paths
@@ -38,11 +40,13 @@ app.use(passport.initialize());
 app.use(express.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(passport.session());
+app.use(flash());
 
 app.use('/api', apiRouter);
 app.use('/create_user', createUserRouter);
 app.use('/login', loginRouter);
 app.use('/auth/facebook', facebookRouter);
+app.use('/auth/google', googleRouter);
 app.use('/success', successRouter);	
 
 //auth

@@ -11,28 +11,25 @@ router.get('/', function(req, res) {
 
 passport.use(new LocalStrategy({
 		//used to redefine username field in callback
-		usernameField: 'email'
+		usernameField: 'email',
 	},
+	// This is called on passport.authenticate
 	async function(username, password, done) {
 		let user;
 		try {
 			user = await User.findOne({ email: username });
 		} catch(err) {
-			console.log('error');
 			return done(err);
 		}
 		if (!user) {
-			console.log('No account with email exists');
 			return done(null, false, { message: "Account does not exist" });
 		}
 		if (!user.password) {
-			console.log("Account was made with either Google or Facebook. Try logging in with that");
 			return done(null, false, { message: "Account was made with either Google or Facebook. Try logging in with that" });
 		}
 		let result = await user.validPassword(password);
 		if (!result) {
-			console.log("Incorrect password");
-			return done(null, false, { message: "Incorrect password "});
+			return done(null, false, { message: "Incorrect password" });
 		}
 		console.log("Success");
 		return done(null, user);
@@ -51,9 +48,24 @@ passport.deserializeUser(function(id, done) {
 	});
 });
 
-router.post('/', passport.authenticate('local', { 
-	successRedirect: '/success',
-	failureRedirect: '/login'
-}));
+router.post('/', function(req,res,next) {
+	// params in done() go to err, user, info
+	passport.authenticate('local', function(err, user, info) {
+		if (err) {
+			res.status(400).send("Error Logging in");
+		}
+		if (!user) {
+			res.status(400).send(info.message);
+		}
+		else {
+			req.logIn(user, function(err) {
+				if (err) {
+					return next(err);
+				}
+				res.status(200).send("Successfully logged in");
+			});
+		}
+	})(req, res, next);
+});
 
 module.exports = router;

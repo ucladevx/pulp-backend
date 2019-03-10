@@ -67,29 +67,33 @@ UserSchema.methods.validPassword = async function(password) {
 }
 
 // Creating user works. Add sessions later on inside both the else blocks.
-UserSchema.statics.findOrCreate = function(user_info, next) {
-	User.findOne({ facebook_login : user_info.facebook_login })
-		.exec(function(err, user) {
-			if (err) {
-				return next(err);
-			}
-			else if (!user) {
-				User.create(user_info, function(err, user) {
-					if (err) {
-						console.log(err)
-						console.log("Failed to create user. Email registered with Facebook/Google already has an account");
-					}
-					else {
-						console.log("Created User");
-						return next(err, user);
-					}
-				});
-			}
-			else {
-				console.log("User exists")
-				return next(err, user);
-			}
-		});
+UserSchema.statics.findOrCreate = async function(user_info, type, next) {
+	let user;
+	try {
+		if (type == 'facebook') {
+			user = await User.findOne({ facebook_login : user_info.facebook_login }).exec();
+		}
+		if (type == 'google') {
+			user = await User.findOne({ google_login : user_info.google_login }).exec();
+		}
+	} catch(err) {
+		return next(err);
+	}
+	if (!user) {
+		try {
+			user = await User.create(user_info);
+		} catch(err) {
+			console.log(err);
+			console.log("Failed to create user. Email registered with Facebook/Google already has an account");
+			return next(null, false);				//Unsure how to handle this error. Causes mongoDB to fail.
+		}
+		console.log("Created user");
+		return next(null, user);
+	}
+	else {
+		console.log("User exists");
+		return next(null, user);
+	}
 }
 
 module.exports = User = mongoose.model('User', UserSchema);

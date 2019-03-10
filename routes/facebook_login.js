@@ -18,26 +18,37 @@ passport.use(new FacebookStrategy({
 		let user_info = {
 			first_name: profile.name.givenName,
 			last_name: profile.name.familyName,
-			birthday: profile.birthday,				// TODO: birthday not working. 
+			birthday: profile._json.birthday,
 			gender: profile.gender,
 			email: profile.emails[0].value,
 			facebook_login: profile.id
 		}
-		User.findOrCreate(user_info, function(err,user) {
-			if (err) {
-				console.log("got an error");
-				return done(err);
-			}
-			done(null, user);
+		console.log(profile)
+		User.findOrCreate(user_info, 'facebook', function(err,user) {
+			done(err, user);
 		});
 	}
 ));
 
-router.get('/', passport.authenticate('facebook', {scope: ['user_birthday', 'user_gender']}));
+router.get('/', passport.authenticate('facebook', {scope: ['email', 'user_birthday']}));
 
-router.get('/callback', passport.authenticate('facebook', {
-	successRedirect: '/success',
-	failureRedirect: '/login'
-}));
+router.get('/callback', function(req,res,next) {
+	passport.authenticate('facebook', function(err, user, info) {
+		if (err) {
+			res.status(400).send("Error Logging in");
+		}
+		if (!user) {
+			res.status(400).send("Error creating account. Email registered with Facebook already has an account.");
+		}
+		else {
+			req.logIn(user, function(err) {
+				if (err) {
+					return next(err);
+				}
+				res.status(200).send("Successfully logged in");
+			});
+		}
+	})(req, res, next);
+});
 
 module.exports = router;

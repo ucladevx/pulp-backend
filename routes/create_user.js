@@ -7,8 +7,7 @@ router.get('/', function(req, res) {
 	res.render('create_user');
 });
 
-// TODO: instead of console.log messages, pass the error message in later on so that front end can use it. Ask what format they want it in.
-router.post('/', function(req, res, next) {
+router.post('/', async function(req, res, next) {
 	if (req.body.first_name && req.body.last_name && req.body.birthday && req.body.gender && req.body.email && req.body.password && req.body.passwordConf) {
 		let userData = {
 			first_name: req.body.first_name,
@@ -19,26 +18,22 @@ router.post('/', function(req, res, next) {
 			password: req.body.password
 		}
 		if (req.body.password != req.body.passwordConf) {
-			console.log("Passwords do not match");
-			res.render('create_user')
+			res.status(400).send("Passwords do not match");
 		}
 		else {
-			User.create(userData, function (err, user) {
-				if (err) {
-					console.log(`${req.body.email} already exists`);
-				}
-				else {
-					console.log("User Created");
-					res.redirect('/success');
-				}
-			})
+			let user;
+			try {
+				user = await User.create(userData);
+			} catch(err) {
+				res.status(400).send(`${req.body.email} already exists`);
+				return;
+			}
+			res.status(201).send("User successfully created");
 		}
 	}
 	else {
-		console.log("all field required");
-		res.render('create_user');
+		res.status(400).send("All fields required")
 	}
-	let user = User.findOne({ email: req.body.email });
-})
+});
 
 module.exports = router;
