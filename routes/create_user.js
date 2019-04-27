@@ -1,15 +1,20 @@
 const express = require('express');
-
+const passport = require('passport');
+const LocalStrategy = require('passport-local').Strategy;
 const router = express.Router();
+const User = require('../models/User');
 
 // Retrieves login ejs on GET
 router.get('/', function(req, res) {
 	res.render('create_user');
 });
 
-router.post('/', async function(req, res, next) {
-	if (req.body.first_name && req.body.last_name && req.body.birthday && req.body.gender && req.body.email && req.body.password && req.body.passwordConf) {
-		let userData = {
+passport.use('local-signup', new LocalStrategy({
+		passReqToCallback: true,
+		usernameField: 'email'		// sets the username field in below async function to email instead
+	},
+	async function (req, username, password, done) {
+		let user_info = {
 			first_name: req.body.first_name,
 			last_name: req.body.last_name,
 			birthday: req.body.birthday,
@@ -17,23 +22,33 @@ router.post('/', async function(req, res, next) {
 			email: req.body.email,
 			password: req.body.password
 		}
-		if (req.body.password != req.body.passwordConf) {
-			res.status(400).send("Passwords do not match");
+		User.findOrCreate(user_info, "create", function(err, user) {
+			console.log(user);
+			done(err, user);
+		});
+	}
+));
+
+router.post('/', function(req, res, done) {
+	if (req.body.password != req.body.passwordConf) {
+		res.status(400).send("Passwords do not match.");
+	}
+	passport.authenticate('local-signup', function(err, user, info) {
+		if (err) {
+			res.status(400).send("Error creating user");
+		}
+		if (!user) {
+			res.status(400).send("User with this email already exists");
 		}
 		else {
-			let user;
-			try {
-				user = await User.create(userData);
-			} catch(err) {
-				res.status(400).send(`${req.body.email} already exists`);
-				return;
-			}
-			res.status(201).send("User successfully created");
+			req.logIn(user, function(err) {
+				if (err) {
+					return done(err);
+				}
+				res.status(200).send("Successfully created user in");
+			});
 		}
-	}
-	else {
-		res.status(400).send("All fields required")
-	}
+	})(req, res, done);
 });
 
 module.exports = router;

@@ -50,6 +50,8 @@ passport.deserializeUser(function(id, done) {
 
 router.post('/', function(req,res,next) {
 	// params in done() go to err, user, info
+	// Beginning of passport workflow. Goes to passport.use after.
+	// If user is passed, calls serializeUser
 	passport.authenticate('local', function(err, user, info) {
 		if (err) {
 			res.status(400).send("Error Logging in");

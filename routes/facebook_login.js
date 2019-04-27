@@ -23,7 +23,9 @@ passport.use(new FacebookStrategy({
 			email: profile.emails[0].value,
 			facebook_login: profile.id
 		}
+		console.log("hello?")
 		console.log(profile)
+		console.log('here')
 		User.findOrCreate(user_info, 'facebook', function(err,user) {
 			done(err, user);
 		});

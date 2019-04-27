@@ -20,6 +20,9 @@ var UserSchema = new mongoose.Schema({
 		type: String,
 		required: true,
 	},
+	profile_name: {
+		type: String,
+	},
 	birthday: {
 		type: String,
 		//required: true,
@@ -27,6 +30,9 @@ var UserSchema = new mongoose.Schema({
 	gender: {
 		type: String,
 		required: true,
+	},
+	school: {
+		type: String,
 	},
 	email: {
 		type: String,
@@ -40,20 +46,18 @@ var UserSchema = new mongoose.Schema({
 	interests: [String]
 });
 
-//{collection:'users'}
-
 //Hash password before saving to MongoDb. create() calls the save() hook
-UserSchema.pre('save',  function(next) {
+UserSchema.pre('save',  function(done) {
 	let user = this;
 	if (!user.isModified('password')) { 
-		return next(); 
+		return done(); 
 	}
 	bcrypt.hash(user.password, 10, function (err, hash) {
 		if (err) {
-			return next(err);
+			return done(err);
 		}
 		user.password = hash;
-		next();
+		done();
 	});
 });
 
@@ -66,8 +70,21 @@ UserSchema.methods.validPassword = async function(password) {
 	return false;
 }
 
+/*
+UserSchema.statics.update = async function(new_info, user_id, done) {
+	let user;
+	try {
+		user = await User.findOne({})
+	}
+}
+*/
+
+UserSchema.statics.add_info = async function (new_info, user, done) {
+
+}
+
 // Creating user works. Add sessions later on inside both the else blocks.
-UserSchema.statics.findOrCreate = async function(user_info, type, next) {
+UserSchema.statics.findOrCreate = async function(user_info, type, done) {
 	let user;
 	try {
 		if (type == 'facebook') {
@@ -76,23 +93,32 @@ UserSchema.statics.findOrCreate = async function(user_info, type, next) {
 		if (type == 'google') {
 			user = await User.findOne({ google_login : user_info.google_login }).exec();
 		}
+		if (type == 'create') {
+			user = await User.findOne({ email : user_info.email }).exec();
+		}
 	} catch(err) {
-		return next(err);
+		return done(err);
 	}
 	if (!user) {
 		try {
 			user = await User.create(user_info);
 		} catch(err) {
 			console.log(err);
-			console.log("Failed to create user. Email registered with Facebook/Google already has an account");
-			return next(null, false);				//Unsure how to handle this error. Causes mongoDB to fail.
+			console.log("Failed to create user. Email already has an account associated with it.");
+			return done(null, false);				//Unsure how to handle this error. Causes mongoDB to fail.
 		}
 		console.log("Created user");
-		return next(null, user);
+		return done(null, user);
 	}
 	else {
-		console.log("User exists");
-		return next(null, user);
+		if (type == 'create') {
+			console.log("User with this email already exists.");
+			return done(null, false);
+		}
+		else {
+			console.log("User exists");
+		}
+		return done(null, user);
 	}
 }
 
