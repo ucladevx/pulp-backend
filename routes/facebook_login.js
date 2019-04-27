@@ -10,7 +10,7 @@ passport.use(new FacebookStrategy({
 	clientID: global.gConfig.FB_APP_ID,
 	clientSecret: global.gConfig.FB_APP_SECRET,
 	callbackURL: 'https://localhost:'+global.gConfig.port+'/auth/facebook/callback', 
-	profileFields: ['id', 'email', 'name', 'gender', 'birthday'],
+	profileFields: ['id', 'email', 'name', 'gender'], // profileFields: 'birthday'
 	},
 	// Creates/finds FB profile and returns with callback
 	function(accessToken, refreshToken, profile, done) {
@@ -18,7 +18,7 @@ passport.use(new FacebookStrategy({
 		let user_info = {
 			first_name: profile.name.givenName,
 			last_name: profile.name.familyName,
-			birthday: profile._json.birthday,
+			//birthday: profile._json.birthday,
 			gender: profile.gender,
 			email: profile.emails[0].value,
 			facebook_login: profile.id
@@ -29,7 +29,7 @@ passport.use(new FacebookStrategy({
 	}
 ));
 
-router.get('/', passport.authenticate('facebook', {scope: ['email', 'user_birthday']}));
+router.get('/', passport.authenticate('facebook', { scope: ['email'] })); //scope: 'user_birthday'
 
 router.get('/callback', function(req,res,next) {
 	passport.authenticate('facebook', function(err, user, is_new) {
@@ -47,7 +47,9 @@ router.get('/callback', function(req,res,next) {
 				if (is_new == 1) {
 					res.status(200).redirect('/add_info');
 				}
-				res.status(200).send("Successfully logged in existing user");
+				else {
+					res.status(200).send("Successfully logged in existing user");
+				}
 			});
 		}
 	})(req, res, next);

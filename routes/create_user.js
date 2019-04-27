@@ -17,7 +17,6 @@ passport.use('local-signup', new LocalStrategy({
 		let user_info = {
 			first_name: req.body.first_name,
 			last_name: req.body.last_name,
-			birthday: req.body.birthday,
 			gender: req.body.gender,
 			email: req.body.email,
 			password: req.body.password

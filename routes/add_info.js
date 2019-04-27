@@ -8,12 +8,11 @@ router.get('/', function(req, res){
 });
 
 router.post('/', async function(req, res){
-	console.log('post')
-	console.log(req.user);
-	if (req.body.profile_name && req.body.school && req.body.interests) {
+	if (req.body.profile_name && req.body.school && req.body.birthday && req.body.interests) {
 		let addData = {
 			profile_name: req.body.profile_name,
 			school: req.body.school,
+			birthday: req.body.birthday,
 			interests: req.body.interests
 		}
 		// finds the user with the email req.user.email, adds the data, and returns the updated user.

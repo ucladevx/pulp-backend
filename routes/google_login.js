@@ -22,7 +22,6 @@ passport.use(new GoogleStrategy({
 			email: profile.emails[0].value,
 			google_login: profile.id
 		}
-		console.log(profile)
 		// is_new is used to determine if the user was just created.
 		User.findOrCreate(user_info, 'google', function(err, user, is_new) {
 			done(err, user, is_new);
@@ -45,7 +44,9 @@ router.get('/callback', function(req, res, next) {
 				if (is_new == 1) {
 					res.status(200).redirect('/add_info');
 				}
-				res.status(200).send("Successfully logged in existing user")
+				else {
+					res.status(200).send("Successfully logged in existing user");
+				}
 			});
 		}
 		else {
