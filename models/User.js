@@ -70,19 +70,6 @@ UserSchema.methods.validPassword = async function(password) {
 	return false;
 }
 
-/*
-UserSchema.statics.update = async function(new_info, user_id, done) {
-	let user;
-	try {
-		user = await User.findOne({})
-	}
-}
-*/
-
-UserSchema.statics.add_info = async function (new_info, user, done) {
-
-}
-
 // Creating user works. Add sessions later on inside both the else blocks.
 UserSchema.statics.findOrCreate = async function(user_info, type, done) {
 	let user;
@@ -108,7 +95,8 @@ UserSchema.statics.findOrCreate = async function(user_info, type, done) {
 			return done(null, false);				//Unsure how to handle this error. Causes mongoDB to fail.
 		}
 		console.log("Created user");
-		return done(null, user);
+		// 1 is a flag to say that it is a newly created user. Used to show wheter add_info is needed.
+		return done(null, user, 1);
 	}
 	else {
 		if (type == 'create') {

@@ -23,9 +23,9 @@ passport.use(new GoogleStrategy({
 			google_login: profile.id
 		}
 		console.log(profile)
-		User.findOrCreate(user_info, 'google', function(err, user) {
-			console.log(user)
-			done(err, user);
+		// is_new is used to determine if the user was just created.
+		User.findOrCreate(user_info, 'google', function(err, user, is_new) {
+			done(err, user, is_new);
 		});
 	}
 ));
@@ -33,10 +33,7 @@ passport.use(new GoogleStrategy({
 router.get('/', passport.authenticate('google', { scope: ['email', 'profile'] }));
 
 router.get('/callback', function(req, res, next) {
-	passport.authenticate('google', function(err, user, info) {
-		console.log(user)
-		console.log(info)
-		console.log(err);
+	passport.authenticate('google', function(err, user, is_new) {
 		if (!user) {
 			res.status(400).send("Error creating account. Email registered with Google already has an account")
 		}
@@ -45,7 +42,10 @@ router.get('/callback', function(req, res, next) {
 				if (err) {
 					return next(err);
 				}
-				res.status(200).render('add_info');
+				if (is_new == 1) {
+					res.status(200).redirect('/add_info');
+				}
+				res.status(200).send("Successfully logged in existing user")
 			});
 		}
 		else {

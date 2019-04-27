@@ -23,11 +23,8 @@ passport.use(new FacebookStrategy({
 			email: profile.emails[0].value,
 			facebook_login: profile.id
 		}
-		console.log("hello?")
-		console.log(profile)
-		console.log('here')
-		User.findOrCreate(user_info, 'facebook', function(err,user) {
-			done(err, user);
+		User.findOrCreate(user_info, 'facebook', function(err, user, is_new) {
+			done(err, user, is_new);
 		});
 	}
 ));
@@ -35,7 +32,7 @@ passport.use(new FacebookStrategy({
 router.get('/', passport.authenticate('facebook', {scope: ['email', 'user_birthday']}));
 
 router.get('/callback', function(req,res,next) {
-	passport.authenticate('facebook', function(err, user, info) {
+	passport.authenticate('facebook', function(err, user, is_new) {
 		if (err) {
 			res.status(400).send("Error Logging in");
 		}
@@ -47,7 +44,10 @@ router.get('/callback', function(req,res,next) {
 				if (err) {
 					return next(err);
 				}
-				res.status(200).send("Successfully logged in");
+				if (is_new == 1) {
+					res.status(200).redirect('/add_info');
+				}
+				res.status(200).send("Successfully logged in existing user");
 			});
 		}
 	})(req, res, next);

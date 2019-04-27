@@ -45,7 +45,7 @@ router.post('/', function(req, res, done) {
 				if (err) {
 					return done(err);
 				}
-				res.status(200).send("Successfully created user in");
+				res.status(200).redirect("add_info");
 			});
 		}
 	})(req, res, done);
