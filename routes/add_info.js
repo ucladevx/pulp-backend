@@ -19,11 +19,12 @@ router.post('/', async function(req, res){
 		try {
 			let user = await User.findOneAndUpdate({ email: req.user.email }, addData, { new: true })
 		} catch(err) {
-			console.log('Error adding information to user.');
-			console.log(err)
+			console.log('Error updating user.');
+			res.status(500).send(err);
 		}
 		res.status(200).send("success")
 	}
+
 	else {
 		console.log("All fields required.")
 	}

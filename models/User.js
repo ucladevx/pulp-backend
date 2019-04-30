@@ -22,6 +22,7 @@ var UserSchema = new mongoose.Schema({
 	},
 	profile_name: {
 		type: String,
+		unique: true,
 	},
 	birthday: {
 		type: String,

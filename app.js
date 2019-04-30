@@ -28,6 +28,7 @@ const facebookRouter = require('./routes/facebook_login');
 const googleRouter = require('./routes/google_login');
 const successRouter = require('./routes/success'); 		// Used for Testing. Delete Later
 const addInfoRouter = require('./routes/add_info');
+const changeInfoRouter = require('./routes/change_info');
 
 app.set('views', path.join(__dirname, 'views'));		// Sets default view paths
 app.set('view engine', 'ejs');
@@ -50,6 +51,7 @@ app.use('/auth/facebook', facebookRouter);
 app.use('/auth/google', googleRouter);
 app.use('/success', successRouter);	
 app.use('/add_info', addInfoRouter);
+app.use('/change_info', changeInfoRouter);
 
 //auth
 const options = {											// Used for certificate for HTTPS
