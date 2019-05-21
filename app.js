@@ -22,7 +22,7 @@ const apiRouter = require('./routes/api');
 const loginRouter = require('./routes/login');
 const facebookRouter = require('./routes/facebook');
 const successRouter = require('./routes/success'); 		// Used for Testing. Delete Later
-coonst placesRouter = require('./routes/places');
+const placesRouter = require('./routes/places');
 
 app.set('views', path.join(__dirname, 'views'));		// Sets default view paths
 app.set('view engine', 'ejs');
@@ -42,14 +42,15 @@ const options = {											// Used for certificate for HTTPS
 	cert: fs.readFileSync('server.crt')
 };
 
+/*
 https
 	.createServer(options, app)
 	.listen(global.gConfig.port, function() {
 		console.log(`${global.gConfig.app_name} listening on port ${global.gConfig.port}`);
 	});
-/*
+*/
+
 app.listen(global.gConfig.port, () => {
 	console.log(`In ${global.gConfig.config_id} mode`);
 	console.log(`${global.gConfig.app_name} listening on port ${global.gConfig.port}`);
 });
-*/
