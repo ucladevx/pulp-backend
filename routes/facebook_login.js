@@ -1,58 +1,49 @@
 const express = require('express');
 const passport = require('passport');
-const FacebookStrategy = require('passport-facebook').Strategy;
+const FacebookTokenStrategy = require('passport-facebook-token')
 const User = require('../models/User');
 
 const router = express.Router();
 
 // For facebook authentication
-passport.use(new FacebookStrategy({
+passport.use('facebook-token', new FacebookTokenStrategy({
 	clientID: global.gConfig.FB_APP_ID,
 	clientSecret: global.gConfig.FB_APP_SECRET,
-	callbackURL: 'https://localhost:'+global.gConfig.port+'/auth/facebook/callback', 
-	profileFields: ['id', 'email', 'name', 'gender'], // profileFields: 'birthday'
 	},
-	// Creates/finds FB profile and returns with callback
 	function(accessToken, refreshToken, profile, done) {
-		// Info on user. Check http://www.passportjs.org/docs/profile/ for more fields if needed
+		console.log(profile)
+		let friends = profile._json.friends.data;
+		let friends_id = [];
+		for (let i = 0; i < friends.length; i++) {
+			friends_id.push(friends[i].id);
+		}
 		let user_info = {
 			first_name: profile.name.givenName,
 			last_name: profile.name.familyName,
-			//birthday: profile._json.birthday,
+			birthday: profile._json.birthday,
 			gender: profile.gender,
 			email: profile.emails[0].value,
-			facebook_login: profile.id
+			facebook_login: profile.id,
+			friends: friends_id
 		}
-		User.findOrCreate(user_info, 'facebook', function(err, user, is_new) {
-			done(err, user, is_new);
+		User.findOrCreate(user_info, 'facebook', function(err, user) {
+			done(err, user);
 		});
 	}
-));
+))
 
-router.get('/', passport.authenticate('facebook', { scope: ['email'] })); //scope: 'user_birthday'
-
-router.get('/callback', function(req,res,next) {
-	passport.authenticate('facebook', function(err, user, is_new) {
-		if (err) {
-			res.status(400).send("Error Logging in");
-		}
-		if (!user) {
-			res.status(400).send("Error creating account. Email registered with Facebook already has an account.");
+router.get('/:access_token', 
+	passport.authenticate(['facebook-token']),
+	function(req, res) {
+		if (req.user) {		//user is authenticated
+			console.log(req.user);
+			res.send(200, "nice");
 		}
 		else {
-			req.logIn(user, function(err) {
-				if (err) {
-					return next(err);
-				}
-				if (is_new == 1) {
-					res.status(200).redirect('/add_info');
-				}
-				else {
-					res.status(200).send("Successfully logged in existing user");
-				}
-			});
+			console.log('huh')
+			res.send(401);
 		}
-	})(req, res, next);
-});
+	}
+);
 
 module.exports = router;
