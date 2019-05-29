@@ -69,7 +69,7 @@ router.post('/', async (req, res) => {
   let place = await Place.findOne({ place_id: req.body.place_id });
   let updated_place = { 
     checkIns: ((req.body.checkIn != null) ? place.checkIns.push(req.user._id) : place.checkIns),
-    rating: ((req.body.rating != null) ? (place.rating + req.body.rating) / (place.ratings.length + 1) : place.rating), 
+    rating: ((req.body.rating != null) ? (place.rating * place.ratings.length + req.body.rating) / (place.ratings.length + 1) : place.rating), 
     ratings: ((req.body.rating != null) ? place.ratings.push(req.user._id) : place.ratings)
   }
 
