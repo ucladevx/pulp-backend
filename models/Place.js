@@ -16,9 +16,9 @@ var PlaceSchema = new mongoose.Schema({
         index: true,
         required: true
     },
-    photo: Object,
+    photos: [Object],
     checkIns: String,
-    rating: String,
+    rating: Number,
     ratings: [String]
 });
 

@@ -18,6 +18,7 @@ router.get('/search/:query/:location/:radius?', (req, res) => {
       let old_place;
       let new_place;
       body = JSON.parse(body);
+      console.log(body);
       for (var result of body.results) {
         try { old_place = await Place.findOne({place_id: result.place_id}); } 
         catch (err) {
@@ -51,7 +52,7 @@ router.get('/profile/:place_id', async (req, res) => {
   }
 
   let photo_reference;
-  try { photo_reference = place.photo.photo_reference; }
+  try { photo_reference = place.photos[0].photo_reference; }
   catch (err) {
     console.log("No photo_reference found for this place.");
     res.status(404).send(err);
@@ -59,18 +60,23 @@ router.get('/profile/:place_id', async (req, res) => {
 
   let url = "https://maps.googleapis.com/maps/api/place/photo?photo_reference="+photo_reference+"&maxheight=1600"+"&key="+key;
   request(url, (error, response, body) => {
-    body = JSON.parse(body);
-    if (!error && response.statusCode == 200) { res.status(200).send({'place': place, 'image': body}); }
+    if (!error && response.statusCode == 200) { res.status(200).sendFile(body); }
     else { res.status(404).send("No image found for this place."); }
   });
 });
 
-router.post('/', async (req, res) => {
-  let place = await Place.findOne({ place_id: req.body.place_id });
+router.post('/update', async (req, res) => {
+  let place;
+  try { place = await Place.findOne({place_id: req.body.place_id}); } 
+  catch (err) {
+      console.log("Error finding place in database.");
+      res.status(500).send(err);
+  }
+
   let updated_place = { 
-    checkIns: ((req.body.checkIn != null) ? place.checkIns.push(req.user._id) : place.checkIns),
-    rating: ((req.body.rating != null) ? (place.rating * place.ratings.length + req.body.rating) / (place.ratings.length + 1) : place.rating), 
-    ratings: ((req.body.rating != null) ? place.ratings.push(req.user._id) : place.ratings)
+    checkIns: ((req.body.checkIn != null) ? place.checkIns.push('User') : place.checkIns),
+    rating: ((req.body.rating != null) ? (place.rating * place.ratings.length + parseInt(req.body.rating)) / (place.ratings.length + 1) : place.rating), 
+    ratings: ((req.body.rating != null) ? place.ratings.push('User') : place.ratings)
   }
 
   try { let place = await Place.findOneAndUpdate({ place_id: req.body.place_id }, updated_place, { new: true }); }

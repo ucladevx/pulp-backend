@@ -6,6 +6,8 @@ const mongoose = require('mongoose');
 const passport = require('passport');
 const flash = require('connect-flash');
 const session = require("express-session");
+const body_parser = require('body-parser');
+
 
 const app = express();
 
@@ -43,6 +45,9 @@ app.use(express.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(passport.session());
 app.use(flash());
+app.use(body_parser.json({
+	extended: true
+}));
 
 app.use('/api', apiRouter);
 //app.use('/create_user', createUserRouter);
