@@ -22,24 +22,11 @@ var PlaceSchema = new mongoose.Schema({
         max: 5,
         index: false
     },
-    thumbsUpCount: {
+    numRatings: {
         type: Number,
         min: 0,
         index: false
     },
-    thumbsDownCount: {
-        type: Number,
-        min: 0,
-        index: false
-    },
-    thumbsUpIds: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User'
-    }],
-    thumbsDownIds: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User'
-    }],
     reviews: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Review'
@@ -47,3 +34,24 @@ var PlaceSchema = new mongoose.Schema({
 });
 
 module.exports = Place = mongoose.model('Place', PlaceSchema);
+
+/*
+thumbsUpCount: {
+    type: Number,
+    min: 0,
+    index: false
+},
+thumbsDownCount: {
+    type: Number,
+    min: 0,
+    index: false
+},
+thumbsUpIds: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+}],
+thumbsDownIds: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+}],
+*/
