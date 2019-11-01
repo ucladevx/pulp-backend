@@ -75,37 +75,17 @@ router.post('/edit_place', (req, res) => {
 })
 */
 
-router.post('/thumbs', (req, res) => {
-  console.log("in thumbs up or down")
-  Place.findOne({name: req.body.name}, async function (err, place) {
-    console.log(place);
-    var type = req.body.type;
-    var user_id = req.body.user_id;
-    if (type == "up"){
-      console.log("up");
-      console.log(place.thumbsUpCount);
-      place.thumbsUpCount += 1;
-      place.thumbsUpIds.push(user_id);
-    }else if (type == "down"){
-      place.thumbsDownCount += 1;
-      place.thumbsDownIds.push(user_id);
-    }
-    await place.save();
-    res.status(200).send("success");
-  });
-})
-
 router.post('/add_review', async (req, res) => {
   console.log("in add review");
   var today = new Date();
 
-  var place = await Place.findOne({name: req.body.place_name});
+  var place = await Place.findById(req.body.place_id);
   console.log(place);
 
   let newReview = new Review({
     dateCreated: today,
     postedBy: req.body.user_id,
-    place: place._id,
+    place: req.body.place_id,
     rating: req.body.rating,
     body: req.body.body
   })
@@ -114,6 +94,9 @@ router.post('/add_review', async (req, res) => {
       if (err) res.status(500).send("Error saving review");
       //console.log("saved new user");
       place.reviews.push(review._id);
+      var newRating = ((place.averageRating * place.numRatings) + req.body.rating) / (place.numRatings + 1);
+      place.averageRating = newRating;
+      place.numRatings += 1;
       await place.save();
       res.send(`New review ${review._id} has been saved.`);
       //res.send('new user has been saved.');
