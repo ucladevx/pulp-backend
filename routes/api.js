@@ -36,4 +36,32 @@ router.get('/delete_user/:user_id', (req, res) => {
     })
 })
 
+//Create a new place (only occur once when someone checked in for the first time)
+router.post('/create_place', (req, res) => {
+    let newPlace = new Place({
+        name: req.body.name,
+        address: req.body.address,
+        place_id: req.body.place_id,
+        averageRating: 0,
+        thumbsUpCount: 0,
+        thumbsDownCount: 0,
+        thumbsUpIds: Array[null],
+        thumbsDownIds: Array[null],
+        reviews: Array[null],
+    })
+    newPlace.save((err, place) => {
+        if (err) res.status(500).send("Error creating new place")
+        console.log("created new place")
+        res.send(`New place ${place._id} has been created.`)
+    })
+})
+
+//Find place by ID
+router.get('/find_place/:place_id', (req, res) => {
+    Place.findById(req.params.place_id, (err, place) => {
+        if (err) res.status(500).send("Error finding place");
+        res.json(place)
+    })
+})
+
 module.exports = router;
