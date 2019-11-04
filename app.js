@@ -3,6 +3,9 @@ const path = require('path');
 const fs = require('fs');
 const https = require('https');
 const mongoose = require('mongoose');
+const passport = require('passport');
+const flash = require('connect-flash');
+const session = require("express-session");
 
 const app = express();
 
@@ -19,20 +22,38 @@ db.on('error', console.error.bind(console, 'conn error:'));
 
 //router
 const apiRouter = require('./routes/api');
+//const createUserRouter = require('./routes/create_user');
 const loginRouter = require('./routes/login');
-const facebookRouter = require('./routes/facebook');
-const successRouter = require('./routes/success'); 		// Used for Testing. Delete Later
+//const googleRouter = require('./routes/google_login');
+//const addInfoRouter = require('./routes/add_info');
+const accountRouter = express.Router();
+const authRouter = express.Router();
+require('./routes/passport')(passport);
 
 app.set('views', path.join(__dirname, 'views'));		// Sets default view paths
 app.set('view engine', 'ejs');
 app.use(express.json());
+app.use(session({
+	secret: 'purple',
+	resave: false,
+	saveUninitialized: false,
+}))
+app.use(passport.initialize());
 app.use(express.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(passport.session());
+app.use(flash());
 
 app.use('/api', apiRouter);
+//app.use('/create_user', createUserRouter);
 app.use('/login', loginRouter);
-app.use('/auth/facebook', facebookRouter);
-app.use('/success', successRouter);	
+//app.use('/auth/google', googleRouter);
+//app.use('/add_info', addInfoRouter);
+app.use('/account', accountRouter);
+app.use('/', authRouter);
+
+require('./routes/account')(accountRouter);
+require('./routes/auth')(authRouter, passport);
 
 //auth
 const options = {											// Used for certificate for HTTPS
