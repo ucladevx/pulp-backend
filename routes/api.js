@@ -129,5 +129,6 @@ router.get('/find_place/:place_id', (req, res) => {
       if (err) res.status(500).send("Error finding place");
       res.json(place)
   })
+})
 
 module.exports = router;
