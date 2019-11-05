@@ -11,11 +11,6 @@ var PlaceSchema = new mongoose.Schema({
         index: true,
         required: true
     },
-    place_id: {
-        type: String,
-        index: true,
-        required: false,
-    },
     averageRating: {
         type: Number,
         min: 0,
