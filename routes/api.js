@@ -63,17 +63,30 @@ router.get('/delete_user/:user_id', (req, res) => {
     })
 })
 
-/*
-router.post('/edit_place', (req, res) => {
+router.post('/edit_place', async (req, res) => {
   console.log("in edit place")
+  /*
   Place.find({name: req.body.name}, function (err, docs) {
     console.log(docs);
     place = docs[0];
     console.log(place);
     console.log(place.)
   });
+  */
+  var place = await Place.findById(req.body.place_id);
+  console.log(place);
+  console.log(Object.keys(req.body));
+  const keys = Object.keys(req.body);
+  for (const key of keys){
+    console.log(key);
+    if(!(place[key] === undefined)){
+      place[key] = req.body[key];
+    }
+  }
+  await place.save();
+  res.send(`Place ${place._id} has been successfully edited.`);
 })
-*/
+
 
 router.post('/add_review', async (req, res) => {
   console.log("in add review");
