@@ -21,9 +21,6 @@ router.post('/new_user', (req, res) => {
     })
     */
     console.log(req.body)
-    console.log(req.body.first_name);
-    console.log(req.body.last_name);
-    console.log(req.body.email);
     let newUser = new User({
       first_name: req.body.first_name,
     	last_name: req.body.last_name,
@@ -39,11 +36,10 @@ router.post('/new_user', (req, res) => {
     	interests: ["interest1", "interest2"],
     	friends: ["friend1", "friend2"]
     })
+    console.log(newUser)
     newUser.save((err, user) => {
         if (err) res.status(500).send("Error saving user");
-        //console.log("saved new user");
-          res.send(`New user ${user._id} has been saved.`);
-        //res.send('new user has been saved.');
+        res.send(`New user ${user._id} has been saved.`);
     })
 })
 
@@ -106,6 +102,42 @@ router.post('/add_review', async (req, res) => {
       res.send(`New review ${review._id} has been saved.`);
       //res.send('new user has been saved.');
   })
+})
+
+//Create new place (only occur once when someone checked in for the first time)
+router.post('/create_place', (req, res) => {
+  let newPlace = new Place({
+      name: req.body.name,
+      address: req.body.address,
+      averageRating: 0, // Rating is added in add_review
+      numRatings: 0,
+  })
+  newPlace.save((err, place) => {
+      if (err) res.status(500).send("Error creating new place")
+      console.log("created new place")
+      res.send(`New place ${place._id} has been created.`)
+  })
+})
+
+//Get place takes in a place_id and an array of fbfriends of a user
+//It outputs the JSON object of place with weighted rating
+router.get('/get_place/:place_id/:fbfriends', async (req, res) => {
+  var place = await Place.findById(req.params.place_id);
+  var review_ids = place.reviews;
+  console.log(review_ids)
+  var weightedRating = 0;
+  // fbfriends array will have to be casted to string
+  // var fbfriends = ["5dc0d5491b222c30f362456f"];  // only for testing
+
+  for (var i=0; i < review_ids.length; i++) {
+    var review = await Review.findById(review_ids[i]);
+    if(fbfriends.includes(review.postedBy.toString()))  // cast ID to string
+      weightedRating += 1.5 * review.rating;
+    else
+      weightedRating += review.rating;
+  }
+  place.averageRating = weightedRating/place.numRatings;
+  res.json(place);
 })
 
 module.exports = router;
