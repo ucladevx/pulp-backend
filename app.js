@@ -32,7 +32,7 @@ const changeInfoRouter = require('./routes/change_info');
 app.set('views', path.join(__dirname, 'views'));		// Sets default view paths
 app.set('view engine', 'ejs');
 app.use(express.json());
-app.use(session({ 
+app.use(session({
 	secret: 'purple',
 	resave: false,
 	saveUninitialized: false,

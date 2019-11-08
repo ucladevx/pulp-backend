@@ -11,20 +11,28 @@ passport.use('facebook-token', new FacebookTokenStrategy({
 	clientSecret: global.gConfig.FB_APP_SECRET,
 	},
 	function(accessToken, refreshToken, profile, done) {
-		console.log(profile)
+        console.log(profile);
+
+        // BUG FROM BEFORE: profile._json.friends DNE when testing
+        /*
 		let friends = profile._json.friends.data;
 		let friends_id = [];
 		for (let i = 0; i < friends.length; i++) {
 			friends_id.push(friends[i].id);
-		}
+        }
+        */
+
 		let user_info = {
+            // User info
 			first_name: profile.name.givenName,
-			last_name: profile.name.familyName,
-			birthday: profile._json.birthday,
-			gender: profile.gender,
-			email: profile.emails[0].value,
-			facebook_login: profile.id,
-			friends: friends_id
+            last_name: profile.name.familyName,
+			photo: "picture",
+            friends: [],                    // will eventually be a list of friend's pulp id's (can serach for them via their FB id's)
+            places: [],                     //start empty?
+
+            // Auth info
+            access_token: accessToken,
+            facebook_id:  profile.id
 		}
 		User.findOrCreate(user_info, 'facebook', function(err, user) {
 			done(err, user);
@@ -32,16 +40,15 @@ passport.use('facebook-token', new FacebookTokenStrategy({
 	}
 ))
 
-router.get('/:access_token', 
-	passport.authenticate(['facebook-token']),
-	function(req, res) {
+router.get('/',
+    passport.authenticate(['facebook-token']),
+	async function(req, res) {
 		if (req.user) {		//user is authenticated
-			console.log(req.user);
-			res.send(200, "nice");
+            //console.log(req.user);
+            res.status(200).send("User authenticated");
 		}
 		else {
-			console.log('huh')
-			res.send(401);
+			res.status(401).send('User authentication failed');
 		}
 	}
 );

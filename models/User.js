@@ -1,83 +1,26 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 
-//Defining User Schema for Different types of login
-/*
-const reviewSubSchema = new Schema({
-	location: String,
-	title: String,
-	body: String,
-	rating: Number
-});
-*/
-
+//Defining User Schema for Different types of login (only handles facebook for now)
 var UserSchema = new mongoose.Schema({
-	first_name: {
-		type: String,
-		required: true,
-	},
-	last_name: {
-		type: String,
-		required: true,
-	},
-	profile_name: {
-		type: String,
-		unique: true,
-		sparse: true
-	},
-	birthday: {
-		type: String,
-		//required: true,
-	},
-	gender: {
-		type: String,
-	},
-	school: {
-		type: String,
-	},
-	email: {
-		type: String,
-		required: true,
-		unique: true,
-		lowercase: true,
-	},
-	facebook_login: String,
-	//google_login: String,
-	//password: String,
-	interests: [String],
-	friends: [String]
-});
+    // User info
+	first_name: { type: String, required: true },
+    last_name:  { type: String, required: true },
+    photo:      { type: String, required: true },
+    friends:    { type:  [mongoose.Schema.Types.ObjectId,], required: true },   // list of friends' pulp db id's
+    places:     { type:  [mongoose.Schema.Types.ObjectId,], required: true },   // list of visited places' pulp db id's
 
-//Hash password before saving to MongoDb. create() calls the save() hook
-UserSchema.pre('save',  function(done) {
-	let user = this;
-	if (!user.isModified('password')) { 
-		return done(); 
-	}
-	bcrypt.hash(user.password, 10, function (err, hash) {
-		if (err) {
-			return done(err);
-		}
-		user.password = hash;
-		done();
-	});
+    // Auth info (unsure whether they are needed, but storing just in case for now)
+    access_token:  { type: String, required: true },
+    facebook_id:   { type: String, required: true }
 });
-
-UserSchema.methods.validPassword = async function(password) {
-	let user = this;
-	const match = await bcrypt.compare(password, user.password);
-	if (match) {
-		return true;
-	}
-	return false;
-}
 
 // type parameter is not needed until we introduce different logins. Leaving it in case we add these again later.
 UserSchema.statics.findOrCreate = async function(user_info, type, done) {
 	let user;
 	try {
 		if (type == 'facebook') {	//always true with only facebook
-			user = await User.findOne({ facebook_login : user_info.facebook_login }).exec();
+			user = await User.findOne({ facebook_id : user_info.facebook_id }).exec();
 		}
 		/*
 		if (type == 'google') {
@@ -98,7 +41,9 @@ UserSchema.statics.findOrCreate = async function(user_info, type, done) {
 			console.log("Failed to create user.");
 			return done(null, false);
 		}
-		console.log("Created user");
+        console.log("Created new user:");
+        console.log(user_info);
+
 		return done(null, user);
 	}
 	else {
@@ -110,7 +55,8 @@ UserSchema.statics.findOrCreate = async function(user_info, type, done) {
 		else {
 			console.log("User exists");
 		}
-		*/
+        */
+        console.log("User already exists");
 		return done(null, user);
 	}
 }
@@ -137,5 +83,31 @@ UserSchema.statics.updateFriends = async function(new_user, old_users) {
 		}
 	}
 }
+
+/* Unneeded since only logging in via facebook?
+//Hash password before saving to MongoDb. create() calls the save() hook
+UserSchema.pre('save',  function(done) {
+	let user = this;
+	if (!user.isModified('password')) {
+		return done();
+	}
+	bcrypt.hash(user.password, 10, function (err, hash) {
+		if (err) {
+			return done(err);
+		}
+		user.password = hash;
+		done();
+	});
+});
+
+UserSchema.methods.validPassword = async function(password) {
+	let user = this;
+	const match = await bcrypt.compare(password, user.password);
+	if (match) {
+		return true;
+	}
+	return false;
+}
+*/
 
 module.exports = User = mongoose.model('User', UserSchema);
