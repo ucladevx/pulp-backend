@@ -7,8 +7,8 @@ var UserSchema = new mongoose.Schema({
 	first_name: { type: String, required: true },
     last_name:  { type: String, required: true },
     photo:      { type: String, required: true },
-    friends:    { type:  [mongoose.Schema.Types.ObjectId,], required: true },   // list of friends' pulp db id's
-    places:     { type:  [mongoose.Schema.Types.ObjectId,], required: true },   // list of visited places' pulp db id's
+    friends:    { type:  [mongoose.Schema.Types.ObjectId,], ref: 'User',  required: true },   // list of friends' pulp db id's
+    places:     { type:  [mongoose.Schema.Types.ObjectId,], ref: 'Place', required: true },   // list of visited places' pulp db id's
 
     // Auth info (unsure whether they are needed, but storing just in case for now)
     access_token:  { type: String, required: true },
@@ -61,22 +61,24 @@ UserSchema.statics.findOrCreate = async function(user_info, type, done) {
 	}
 }
 
-UserSchema.statics.updateFriends = async function(new_user, old_users) {
-	for (let i = 0; i < old_users.length; i++) {
-		let user;
+// adds new_user to each of new_user's friends' .friends list field in db
+//  --> for each user U in new_user.friends: U.friends.add(new_user)
+UserSchema.statics.updateFriends = async function(new_user) {
+    let new_user_friend = new_user.friends;
+    for (let i = 0; i < new_user_friends.length; i++) {
+		let new_user_friend;
 		try {
-			user = await User.findOne({ facebook_login : old_users[i] });
+            new_user_friend = await User.findById(new_user_friends[i]);
 		} catch(err) {
 			console.log("Couldn't find friend");
 		}
-		if (user) {
-			if (user.friends.includes(new_user)) {
+		if (new_user_friend) {
+			if (new_user_friend.friends.includes(new_user)) {
 				continue;
 			}
-			user.friends.push(new_user)
-			console.log(user)
+			new_user_friend.friends.push(new_user)
 			try {
-				await User.findOneAndUpdate({ facebook_login : old_users[i] }, user, { new: true });
+                await User.findByIdAndUpdate(new_user_friends[i], new_user_friend, { new: true });
 			} catch(err) {
 				console.log("failed to update friends list");
 			}

@@ -18,10 +18,12 @@ router.post('/new_user', (req, res) => {
         facebook_id:   req.body.facebook_id
     })
     newUser.save((err, user) => {
-        if (err) res.status(500).send("Error saving user");
+        if (err) res.status(500).send("Error saving user: " + err);
         console.log("saved new user");
         res.send(`New user ${user._id} has been saved.`);
     })
+    //just for testing for now
+    //User.updateFriends(newUser);
 })
 
 //Find user by ID
