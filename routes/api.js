@@ -9,9 +9,13 @@ const Review = require('../models/Review');
 //Insert new user into database
 router.post('/new_user', (req, res) => {
     let newUser = new User({
-        name: req.body.name,
-        email: req.body.email,
-        dateJoined: Date.now()
+        first_name:    req.body.first_name,
+        last_name:     req.body.last_name,
+        photo:         req.body.photo,
+        friends:       req.body.friends,
+        places:        req.body.places,
+        access_token:  req.body.access_token,
+        facebook_id:   req.body.facebook_id
     })
     newUser.save((err, user) => {
         if (err) res.status(500).send("Error saving user");
