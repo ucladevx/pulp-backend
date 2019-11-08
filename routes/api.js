@@ -111,6 +111,7 @@ router.post('/create_place', (req, res) => {
       address: req.body.address,
       averageRating: 0, // Rating is added in add_review
       numRatings: 0,
+      reviews: []
   })
   newPlace.save((err, place) => {
       if (err) res.status(500).send("Error creating new place")
