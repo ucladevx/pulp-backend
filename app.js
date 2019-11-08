@@ -10,14 +10,24 @@ const session = require("express-session");
 const app = express();
 
 //environment variable
-process.env.NODE_ENV = 'development';
+//development
+process.env.NODE_ENV = 'testing';
 const config = require('./config/config.js');
 
 //mongoose connection
+console.log(global.gConfig.mongo_url);
+console.log(global.gConfig.db);
+
 mongoose.connect(global.gConfig.mongo_url, ({dbName: global.gConfig.db}, { useNewUrlParser: true}));
 let db = mongoose.connection;
 mongoose.Promise = global.Promise;
-db.once('open', () => { console.log('Successfully connected');});
+db.once('open', () => {
+	console.log('Successfully connected');
+	mongoose.connection.db.listCollections().toArray(function (err, names) {
+			console.log(names); // [{ name: 'dbname.myCollection' }]
+			module.exports.Collection = names;
+	});
+});
 db.on('error', console.error.bind(console, 'conn error:'));
 
 //router
