@@ -64,7 +64,7 @@ UserSchema.statics.findOrCreate = async function(user_info, type, done) {
 // adds new_user to each of new_user's friends' .friends list field in db
 //  --> for each user U in new_user.friends: U.friends.add(new_user)
 UserSchema.statics.updateFriends = async function(new_user) {
-    let new_user_friend = new_user.friends;
+    let new_user_friends = new_user.friends;
     for (let i = 0; i < new_user_friends.length; i++) {
 		let new_user_friend;
 		try {
