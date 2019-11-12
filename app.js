@@ -24,11 +24,18 @@ db.on('error', console.error.bind(console, 'conn error:'));
 const apiRouter = require('./routes/api');
 //const createUserRouter = require('./routes/create_user');
 const loginRouter = require('./routes/login');
+<<<<<<< HEAD
 //const googleRouter = require('./routes/google_login');
 //const addInfoRouter = require('./routes/add_info');
 const accountRouter = express.Router();
 const authRouter = express.Router();
 require('./routes/passport')(passport);
+=======
+const facebookRouter = require('./routes/facebook_login');
+//const googleRouter = require('./routes/google_login');
+//const addInfoRouter = require('./routes/add_info');
+const changeInfoRouter = require('./routes/change_info');
+>>>>>>> nick
 
 app.set('views', path.join(__dirname, 'views'));		// Sets default view paths
 app.set('view engine', 'ejs');
@@ -46,6 +53,7 @@ app.use(flash());
 
 app.use('/api', apiRouter);
 //app.use('/create_user', createUserRouter);
+<<<<<<< HEAD
 app.use('/login', loginRouter);
 //app.use('/auth/google', googleRouter);
 //app.use('/add_info', addInfoRouter);
@@ -54,6 +62,13 @@ app.use('/', authRouter);
 
 require('./routes/account')(accountRouter);
 require('./routes/auth')(authRouter, passport);
+=======
+//app.use('/login', loginRouter);
+app.use('/auth/facebook', facebookRouter);
+//app.use('/auth/google', googleRouter);
+//app.use('/add_info', addInfoRouter);
+app.use('/change_info', changeInfoRouter);
+>>>>>>> nick
 
 //auth
 const options = {											// Used for certificate for HTTPS

@@ -15,9 +15,13 @@ router.post('/new_user', (req, res) => {
     console.log("in new user");
     /*
     let newUser = new User({
-        name: req.body.name,
-        email: req.body.email,
-        dateJoined: Date.now()
+        first_name:    req.body.first_name,
+        last_name:     req.body.last_name,
+        photo:         req.body.photo,
+        friends:       req.body.friends,
+        places:        req.body.places,
+        access_token:  req.body.access_token,
+        facebook_id:   req.body.facebook_id
     })
     */
     console.log(req.body)
@@ -38,9 +42,12 @@ router.post('/new_user', (req, res) => {
     })
     console.log(newUser)
     newUser.save((err, user) => {
-        if (err) res.status(500).send("Error saving user");
+        if (err) res.status(500).send("Error saving user: " + err);
+        console.log("saved new user");
         res.send(`New user ${user._id} has been saved.`);
     })
+    //just for testing for now
+    //User.updateFriends(newUser);
 })
 
 //Find user by ID
