@@ -42,4 +42,17 @@ router.get('/delete_user/:user_id', (req, res) => {
     })
 })
 
+//Edit existing user
+router.post('/edit_user', async (req, res) => {
+    var user = await User.findById(req.body.user_id);
+    const keys = Object.keys(req.body);
+    for (const key of keys){
+      if(!(user[key] === undefined)){
+        user[key] = req.body[key];
+      }
+    }
+    await user.save();
+    res.send(`User ${user._id} has been successfully edited.`);
+})
+
 module.exports = router;
