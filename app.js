@@ -11,7 +11,8 @@ const app = express();
 
 //environment variable
 //development
-process.env.NODE_ENV = 'testing';
+//process.env.NODE_ENV = 'testing';
+process.env.NODE_ENV = 'development';
 const config = require('./config/config.js');
 
 //mongoose connection
