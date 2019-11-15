@@ -121,15 +121,17 @@ router.post('/create_place', (req, res) => {
   })
 })
 
-//Get place takes in a place_id and an array of fbfriends of a user
-//It outputs the JSON object of place with weighted rating
+// Take in the place_id and array of ObjectIds and return the details of the place
+// and the weighted rating of the place
 router.get('/get_place/:place_id/:fbfriends', async (req, res) => {
   var place = await Place.findById(req.params.place_id);
   var review_ids = place.reviews;
   console.log(review_ids)
   var weightedRating = 0;
-  // fbfriends array will have to be casted to string
-  // var fbfriends = ["5dc0d5491b222c30f362456f"];  // only for testing
+  // Cast array of objectIds to strings
+  var fbfriends = fbfriends.map(function(friend) {
+    return friend["_id"];
+  });
 
   for (var i=0; i < review_ids.length; i++) {
     var review = await Review.findById(review_ids[i]);
