@@ -123,25 +123,27 @@ router.post('/create_place', (req, res) => {
 
 // Take in the place_id and array of ObjectIds and return the details of the place
 // and the weighted rating of the place
-router.get('/get_place/:place_id/:fbfriends', async (req, res) => {
-  var place = await Place.findById(req.params.place_id);
-  var review_ids = place.reviews;
-  console.log(review_ids)
-  var weightedRating = 0;
-  // Cast array of objectIds to strings
-  var fbfriends = fbfriends.map(function(friend) {
-    return friend["_id"];
-  });
+router.get('/get_place/:place_id', async (req, res, next) => {
+    var place = await Place.findById(req.params.place_id);
+    var review_ids = place.reviews;
 
-  for (var i=0; i < review_ids.length; i++) {
-    var review = await Review.findById(review_ids[i]);
-    if(fbfriends.includes(review.postedBy.toString()))  // cast ID to string
-      weightedRating += 1.5 * review.rating;
-    else
-      weightedRating += review.rating;
-  }
-  place.averageRating = weightedRating/place.numRatings;
-  res.json(place);
+    var fbfriends = await req.body.fbfriends;
+    var weightedRating = 0;
+    var weights = 0;
+
+    for (var i=0; i < review_ids.length; i++) {
+      var review = await Review.findById(review_ids[i]);
+      if(fbfriends.includes(review.postedBy.toString())) { // cast ID to string
+        weightedRating += 1.5 * review.rating;
+        weights += 1.5;
+      }
+      else {
+        weightedRating += review.rating;
+        weights += 1;
+      }
+    }
+    place.averageRating = weightedRating/weights;
+    res.json(place);
 })
 
 module.exports = router;
