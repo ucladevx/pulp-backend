@@ -146,4 +146,17 @@ router.get('/get_place/:place_id', async (req, res, next) => {
     res.json(place);
 })
 
+// Returns the Place object if place exists or null if it doesn't
+router.get('/search_place/:name', (req, res) => {
+  Place.find( {name: req.params.name }, function(err, cursor) {
+    if(cursor.length == 0) {
+      console.log("Place not found");
+      res.send(null);
+    }
+    cursor.forEach(function(place) {
+      res.json(place);
+    });
+  });
+})
+
 module.exports = router;
