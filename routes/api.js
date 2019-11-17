@@ -122,6 +122,14 @@ router.post('/create_place', (req, res) => {
   })
 })
 
+// Take in the place_id and array of fbfriends and return the details of the place
+// and the weighted rating of the place
+router.get('/get_place', async (req, res) => {
+    var place = await get_place(req.body.place_id, req.body.fbfriends);
+    res.json(place);
+})
+
+// The logic behind get_place api route.
 async function get_place(place_id, fbfriends) {
   var place = await Place.findById(place_id);
   var review_ids = place.reviews;
@@ -144,23 +152,17 @@ async function get_place(place_id, fbfriends) {
   return place;
 }
 
-// Take in the place_id and array of ObjectIds and return the details of the place
-// and the weighted rating of the place
-router.get('/get_place', async (req, res, next) => {
-    var place = await get_place(req.body.place_id, req.body.fbfriends);
-    res.json(place);
-})
-
 // Returns the Place object if place exists or null if it doesn't
-router.get('/search_place/:name', (req, res) => {
-  Place.find( {name: req.params.name }, function(err, cursor) {
-    if(cursor.length == 0) {
-      console.log("Place not found");
-      res.send(null);
-    }
-    cursor.forEach(function(place) {
-      res.json(place);
-    })
+// The request body should contain place_name and an array of fbfriends.
+router.get('/search_place_if_exists', async (req, res) => {
+  var cursor = await Place.find( {name: req.body.place_name } );
+  if(cursor.length == 0) {
+    console.log("Place not found");
+    res.send(null);
+  }
+  cursor.forEach(async function(place) {
+    var customized_place = await get_place(place._id, req.body.fbfriends);
+    res.json(customized_place);
   });
 })
 
