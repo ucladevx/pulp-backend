@@ -1,4 +1,5 @@
 const express = require('express');
+const request = require('supertest');
 const router = express.Router();
 
 const mongoose = require('mongoose');
@@ -121,28 +122,32 @@ router.post('/create_place', (req, res) => {
   })
 })
 
+async function get_place(place_id, fbfriends) {
+  var place = await Place.findById(place_id);
+  var review_ids = place.reviews;
+
+  var weightedRating = 0;
+  var weights = 0;
+
+  for (var i=0; i < review_ids.length; i++) {
+    var review = await Review.findById(review_ids[i]);
+    if(fbfriends.includes(review.postedBy.toString())) { // cast ID to string
+      weightedRating += 1.5 * review.rating;
+      weights += 1.5;
+    }
+    else {
+      weightedRating += review.rating;
+      weights += 1;
+    }
+  }
+  place.averageRating = weightedRating/weights;
+  return place;
+}
+
 // Take in the place_id and array of ObjectIds and return the details of the place
 // and the weighted rating of the place
-router.get('/get_place/:place_id', async (req, res, next) => {
-    var place = await Place.findById(req.params.place_id);
-    var review_ids = place.reviews;
-
-    var fbfriends = await req.body.fbfriends;
-    var weightedRating = 0;
-    var weights = 0;
-
-    for (var i=0; i < review_ids.length; i++) {
-      var review = await Review.findById(review_ids[i]);
-      if(fbfriends.includes(review.postedBy.toString())) { // cast ID to string
-        weightedRating += 1.5 * review.rating;
-        weights += 1.5;
-      }
-      else {
-        weightedRating += review.rating;
-        weights += 1;
-      }
-    }
-    place.averageRating = weightedRating/weights;
+router.get('/get_place', async (req, res, next) => {
+    var place = await get_place(req.body.place_id, req.body.fbfriends);
     res.json(place);
 })
 
@@ -155,7 +160,7 @@ router.get('/search_place/:name', (req, res) => {
     }
     cursor.forEach(function(place) {
       res.json(place);
-    });
+    })
   });
 })
 
