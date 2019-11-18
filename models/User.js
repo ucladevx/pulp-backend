@@ -11,7 +11,7 @@ var UserSchema = new mongoose.Schema({
     places:     { type:  [mongoose.Schema.Types.ObjectId,], ref: 'Place', required: true },   // list of visited places' pulp db id's
 
     // Auth info (unsure whether they are needed, but storing just in case for now)
-    access_token:  { type: String, required: true },
+    access_token:  { type: String, required: true },    // I don't think this will be needed bc no need to query facebook after initial setup, but keep for now
     facebook_id:   { type: String, required: true }
 });
 

@@ -37,10 +37,10 @@ router.post('/new_user', async (req, res) => {
     newUser.save((err, user) => {
         if (err) res.status(500).send("Error saving user: " + err);
         console.log("saved new user");
-        res.send(`New user ${user._id} has been saved.`);
+        res.send(newUser._id);
     })
 
-    // Add new_user to each of new_user's friends already on the app
+    // Add new user to each of new_user's friends already on the app
     User.updateFriends(newUser);
 })
 
