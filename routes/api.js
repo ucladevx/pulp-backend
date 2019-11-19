@@ -68,15 +68,69 @@ router.get('/delete_user/:user_id', (req, res) => {
 
 // Edit existing user
 router.post('/edit_user', async (req, res) => {
-    var user = await User.findById(req.body.user_id);
-    const keys = Object.keys(req.body);
-    for (const key of keys){
-      if(!(user[key] === undefined)){
-        user[key] = req.body[key];
-      }
+    let user;
+    try {
+        user = await User.findById(req.body.user_id);
+    } catch (err) {
+        res.status(500).send("Could not find user");
     }
-    await user.save();
-    res.send(`User ${user._id} has been successfully edited.`);
+    if (user) {
+        const keys = Object.keys(req.body);
+        for (const key of keys) {
+            if(!(user[key] === undefined)) {
+                user[key] = req.body[key];
+            }
+        }
+        await user.save();
+        res.send(`User ${user._id} has been successfully edited.`);
+    }
+})
+
+
+
+// Given user, return list of all unique places (in json object format) that the user's friends have been to
+//  Note: needs personal place rating
+//      use getPlace!
+router.get('/get_map', async (req, res) => {
+    let user;
+    try {
+        user = await User.findById(req.body.user_id);
+    } catch(err) {
+        res.status(500).send("Couldn't find user.")
+    }
+    if (user) {
+        // Get a list of unique place id's that the user's friends have been to
+        let place_ids = [];
+        let friends = user.friends;
+        for (let i = 0; i < friends.length; i++) {
+            let friend_id = friends[i];
+            try {
+                friend = await User.findById(friend_id);
+            } catch(err) {
+                console.log('Could not find friend in DB');
+                continue;
+            }
+            if (friend) {
+                let friend_places = friend.places;
+                for (let j = 0; j < friend_places.length; j++) {
+                    let place_id = friend_places[j];
+                    if (place_ids.includes(place_id.toString())) {
+                        continue;
+                    }
+                    place_ids.push(place_id.toString());
+                }
+            }
+        }
+
+        // use get_place to get data of each place with custom rating for the user
+        let list = []
+        for (let k = 0; k < place_ids.length; k++) {
+            let data = await get_place(place_ids[k], friends);
+            list.push(data);
+        }
+
+        res.send(list);
+    }
 })
 
 
