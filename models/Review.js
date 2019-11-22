@@ -7,14 +7,18 @@ var ReviewSchema = new mongoose.Schema({
         required: true
     },
     postedBy: {
-        type: mongoose.Schema.Types.ObjectId, 
+        type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true
     },
     place: {
-        type: mongoose.Schema.Types.ObjectId, 
+        type: mongoose.Schema.Types.ObjectId,
         ref: 'Place',
         index: true
+    },
+    rating: {
+        type: Number,
+        required: true
     },
     body: {
         type: String,
