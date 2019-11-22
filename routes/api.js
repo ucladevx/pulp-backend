@@ -218,6 +218,8 @@ router.get('/get_place', async (req, res) => {
 // The logic behind get_place api route.
 async function get_place(place_id, fbfriends) {
   var place = await Place.findById(place_id);
+  if (place == null)
+    return null;
   var review_ids = place.reviews;
 
   var weightedRating = 0;
