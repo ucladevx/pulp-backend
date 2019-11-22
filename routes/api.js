@@ -7,7 +7,7 @@ const Place = require('../models/Place');
 const Review = require('../models/Review');
 
 router.get('/', (req, res) => {
-  res.send('hello world')
+  res.send('hello world v2')
 })
 
 //Insert new user into database
