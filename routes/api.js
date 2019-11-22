@@ -89,18 +89,17 @@ router.post('/edit_user', async (req, res) => {
     }
 })
 
-
-
 // Given user, return list of all unique places (in json object format) that the user's friends have been to
 //  Note: needs personal place rating
 //      use getPlace!
-router.get('/get_map', async (req, res) => {
+router.get('/get_map/:user_id', async (req, res) => {
     let user;
     try {
-        user = await User.findById(req.body.user_id);
+        user = await User.findById(req.params.user_id);
     } catch(err) {
         res.status(500).send("Couldn't find user.")
     }
+
     if (user) {
         // Get a list of unique place id's that the user's friends have been to
         let place_ids = [];
@@ -129,9 +128,12 @@ router.get('/get_map', async (req, res) => {
         let list = []
         for (let k = 0; k < place_ids.length; k++) {
             let data = await get_place(place_ids[k], friends);
-            list.push(data);
+            if(data)
+                list.push(data);
         }
-
+        // Sort the list by average rating first and distance to break the tie
+        list.sort((a, b) => (a.averageRating > b.averageRating) ? 1 : 
+            (a.averageRating === b.averageRating) ? ((a.distance > b.distance) ? 1 : -1) : -1 )
         res.send(list);
     }
 })
