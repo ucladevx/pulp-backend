@@ -11,47 +11,49 @@ router.get('/', (req, res) => {
   res.send('hello world v2')
 })
 
-//Insert new user into database
-router.post('/new_user', (req, res) => {
-    console.log("in new user");
-    /*
+/////////////////////////////////////////////////
+//////////////   USER ENDPOINTS   ///////////////
+/////////////////////////////////////////////////
+
+// Insert new user into database
+router.post('/new_user', async (req, res) => {
+
+    let friends_facebook_ids = req.body.friends;    // array of friends' FB id's
+    let friends_pulp_ids = [];                      // array of friends' Pulp id's
+
+    for (let i = 0; i < friends_facebook_ids.length; i++) {
+        await User.findOne({ facebook_id: friends_facebook_ids[i] }, (err, friend) => {
+            if (err) {
+                console.log(`New user's fb friend (${friends_facebook_ids[i]}) was not found in DB`)
+            } else {
+                friends_pulp_ids.push(friend._id)
+            }
+        })
+    }
+
+    // Get user info from req.body
     let newUser = new User({
         first_name:    req.body.first_name,
         last_name:     req.body.last_name,
         photo:         req.body.photo,
-        friends:       req.body.friends,
-        places:        req.body.places,
+        friends:       friends_pulp_ids,
+        places:        [],
         access_token:  req.body.access_token,
         facebook_id:   req.body.facebook_id
     })
-    */
-    console.log(req.body)
-    let newUser = new User({
-      first_name: req.body.first_name,
-    	last_name: req.body.last_name,
-    	profile_name: "xeliot334",
-    	birthday: "00/00/0000",
-    	gender: "M",
-    	school: "d",
-    	email: req.body.email,
-    	facebook_login: "facebook_login",
-    	accessToken: "access_token",
-    	//google_login: String,
-    	//password: String,
-    	interests: ["interest1", "interest2"],
-    	friends: ["friend1", "friend2"]
-    })
-    console.log(newUser)
+
+    // Save new user
     newUser.save((err, user) => {
         if (err) res.status(500).send("Error saving user: " + err);
         console.log("saved new user");
-        res.send(`New user ${user._id} has been saved.`);
+        res.send(newUser._id);
     })
-    //just for testing for now
-    //User.updateFriends(newUser);
+
+    // Add new user to each of new_user's friends already on the app
+    User.updateFriends(newUser);
 })
 
-//Find user by ID
+// Find user by ID
 router.get('/find_user/:user_id', (req, res) => {
     User.findById(req.params.user_id, (err, user) => {
         if (err) res.status(500).send("Error finding user");
@@ -59,7 +61,7 @@ router.get('/find_user/:user_id', (req, res) => {
     })
 })
 
-//Delete user by ID
+// Delete user by ID
 router.get('/delete_user/:user_id', (req, res) => {
     User.remove({_id: req.params.user_id}, (err) => {
         if (err) res.status(500).send("Error deleting user: " + err);
@@ -67,6 +69,84 @@ router.get('/delete_user/:user_id', (req, res) => {
     })
 })
 
+// Edit existing user
+router.post('/edit_user', async (req, res) => {
+    let user;
+    try {
+        user = await User.findById(req.body.user_id);
+    } catch (err) {
+        res.status(500).send("Could not find user");
+    }
+    if (user) {
+        const keys = Object.keys(req.body);
+        for (const key of keys) {
+            if(!(user[key] === undefined)) {
+                user[key] = req.body[key];
+            }
+        }
+        await user.save();
+        res.send(`User ${user._id} has been successfully edited.`);
+    }
+})
+
+
+
+// Given user, return list of all unique places (in json object format) that the user's friends have been to
+//  Note: needs personal place rating
+//      use getPlace!
+router.get('/get_map', async (req, res) => {
+    let user;
+    try {
+        user = await User.findById(req.body.user_id);
+    } catch(err) {
+        res.status(500).send("Couldn't find user.")
+    }
+    if (user) {
+        // Get a list of unique place id's that the user's friends have been to
+        let place_ids = [];
+        let friends = user.friends;
+        for (let i = 0; i < friends.length; i++) {
+            let friend_id = friends[i];
+            try {
+                friend = await User.findById(friend_id);
+            } catch(err) {
+                console.log('Could not find friend in DB');
+                continue;
+            }
+            if (friend) {
+                let friend_places = friend.places;
+                for (let j = 0; j < friend_places.length; j++) {
+                    let place_id = friend_places[j];
+                    if (place_ids.includes(place_id.toString())) {
+                        continue;
+                    }
+                    place_ids.push(place_id.toString());
+                }
+            }
+        }
+
+        // use get_place to get data of each place with custom rating for the user
+        let list = []
+        for (let k = 0; k < place_ids.length; k++) {
+            let data = await get_place(place_ids[k], friends);
+            list.push(data);
+        }
+
+        res.send(list);
+    }
+})
+
+
+
+
+/////////////////////////////////////////////////
+//////////////   PLACE ENDPOINTS   //////////////
+/////////////////////////////////////////////////
+
+//          ALL PLACE ENDPOINTS UNTESTED ON MY BRANCH
+
+
+// Edit existing place
 router.post('/edit_place', async (req, res) => {
   console.log("in edit place")
   var place = await Place.findById(req.body.place_id);

@@ -26,8 +26,8 @@ passport.use('facebook-token', new FacebookTokenStrategy({
             // User info
 			first_name: profile.name.givenName,
             last_name: profile.name.familyName,
-			photo: "picture",
-            friends: [],                    // will eventually be a list of friend's pulp id's (can serach for them via their FB id's)
+			photo: profile.photos[0].value,
+            friends: [],                    // will eventually be a list of friend's pulp id's (can search for them via their FB id's)
             places: [],                     //start empty?
 
             // Auth info
