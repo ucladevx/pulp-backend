@@ -1,4 +1,5 @@
 const express = require('express');
+const request = require('supertest');
 const router = express.Router();
 
 const mongoose = require('mongoose');
@@ -127,27 +128,48 @@ router.post('/create_place', (req, res) => {
   })
 })
 
-// Take in the place_id and array of ObjectIds and return the details of the place
+// Take in the place_id and array of fbfriends and return the details of the place
 // and the weighted rating of the place
-router.get('/get_place/:place_id/:fbfriends', async (req, res) => {
-  var place = await Place.findById(req.params.place_id);
+router.get('/get_place', async (req, res) => {
+    var place = await get_place(req.body.place_id, req.body.fbfriends);
+    res.json(place);
+})
+
+// The logic behind get_place api route.
+async function get_place(place_id, fbfriends) {
+  var place = await Place.findById(place_id);
   var review_ids = place.reviews;
-  console.log(review_ids)
+
   var weightedRating = 0;
-  // Cast array of objectIds to strings
-  var fbfriends = fbfriends.map(function(friend) {
-    return friend["_id"];
-  });
+  var weights = 0;
 
   for (var i=0; i < review_ids.length; i++) {
     var review = await Review.findById(review_ids[i]);
-    if(fbfriends.includes(review.postedBy.toString()))  // cast ID to string
+    if(fbfriends.includes(review.postedBy.toString())) { // cast ID to string
       weightedRating += 1.5 * review.rating;
-    else
+      weights += 1.5;
+    }
+    else {
       weightedRating += review.rating;
+      weights += 1;
+    }
   }
-  place.averageRating = weightedRating/place.numRatings;
-  res.json(place);
+  place.averageRating = weightedRating/weights;
+  return place;
+}
+
+// Returns the Place object if place exists or null if it doesn't
+// The request body should contain place_name and an array of fbfriends.
+router.get('/search_place_if_exists', async (req, res) => {
+  var cursor = await Place.find( {name: req.body.place_name } );
+  if(cursor.length == 0) {
+    console.log("Place not found");
+    res.send(null);
+  }
+  cursor.forEach(async function(place) {
+    var customized_place = await get_place(place._id, req.body.fbfriends);
+    res.json(customized_place);
+  });
 })
 
 module.exports = router;
