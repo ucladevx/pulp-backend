@@ -6,10 +6,44 @@ var PlaceSchema = new mongoose.Schema({
         index: true,
         required: true
     },
-    address: {
+    image: {
+        type: String,
+    },
+    city: {
+        type: String,
+        required: true
+    },
+    state: {    
+        type: String,
+        required: true
+    },
+    address1: {
         type: String,
         index: true,
-        required: true
+        required: false
+    },
+    address2: {
+        type: String,
+        index: true,
+        required: false
+    },
+    zip_code: {
+        type: String,
+        required: false
+    },
+    latitude: {
+        type: Number,
+        index: true,
+        required: true,
+    },
+    longitude:{
+        type: Number,
+        index: true,
+        required: true,
+    },
+    tags:{ 
+        type: [String],
+        required: true 
     },
     averageRating: {
         type: Number,
