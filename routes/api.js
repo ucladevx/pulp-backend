@@ -122,7 +122,7 @@ router.get('/get_map', async (req, res) => {
             }
         }
 
-        // use get_place to get data of each place with custom rating for the user
+        // use get_place to get data of each unique place with custom rating for the user
         let list = []
         for (let k = 0; k < place_ids.length; k++) {
             let data = await get_place(place_ids[k], friends);
