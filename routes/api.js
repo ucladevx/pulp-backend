@@ -132,7 +132,7 @@ router.get('/get_map/:user_id', async (req, res) => {
                 list.push(data);
         }
         // Sort the list by average rating first and distance to break the tie
-        list.sort((a, b) => (a.averageRating > b.averageRating) ? 1 : 
+        list.sort((a, b) => (a.averageRating > b.averageRating) ? 1 :
             (a.averageRating === b.averageRating) ? ((a.distance > b.distance) ? 1 : -1) : -1 )
         res.send(list);
     }
@@ -212,8 +212,9 @@ router.post('/create_place', (req, res) => {
 
 // Take in the place_id and array of fbfriends and return the details of the place
 // and the weighted rating of the place
-router.get('/get_place', async (req, res) => {
-    var place = await get_place(req.body.place_id, req.body.fbfriends);
+router.get('/get_place/:place_id/:user_id', async (req, res) => {
+    var user = await User.findById(req.params.user_id);
+    var place = await get_place(req.params.place_id, user.friends);
     res.json(place);
 })
 
@@ -250,8 +251,9 @@ router.get('/search_place_if_exists', async (req, res) => {
     console.log("Place not found");
     res.send(null);
   }
+  var user = await User.findById(req.body.user_id);
   cursor.forEach(async function(place) {
-    var customized_place = await get_place(place._id, req.body.fbfriends);
+    var customized_place = await get_place(place._id, user.friends);
     res.json(customized_place);
   });
 })
