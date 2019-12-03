@@ -8,7 +8,7 @@ const Place = require('../models/Place');
 const Review = require('../models/Review');
 
 router.get('/', (req, res) => {
-  res.send('hello world v2')
+  res.send('hello world v3')
 })
 
 /////////////////////////////////////////////////
@@ -145,9 +145,6 @@ router.get('/get_map/:user_id', async (req, res) => {
 //////////////   PLACE ENDPOINTS   //////////////
 /////////////////////////////////////////////////
 
-//          ALL PLACE ENDPOINTS UNTESTED ON MY BRANCH
-
-
 // Edit existing place
 router.post('/edit_place', async (req, res) => {
   console.log("in edit place")
@@ -172,6 +169,8 @@ router.post('/add_review', async (req, res) => {
 
   var place = await Place.findById(req.body.place_id);
   console.log(place);
+  var user = await User.findById(req.body.user_id);
+  console.log(user);
 
   let newReview = new Review({
     dateCreated: today,
@@ -192,13 +191,24 @@ router.post('/add_review', async (req, res) => {
       res.send(`New review ${review._id} has been saved.`);
       //res.send('new user has been saved.');
   })
+
+  user.places.push(req.body.place_id);
+  await user.save();
 })
 
 //Create new place (only occur once when someone checked in for the first time)
 router.post('/create_place', (req, res) => {
   let newPlace = new Place({
       name: req.body.name,
-      address: req.body.address,
+      image: req.body.image,
+      city: req.body.city,
+      state: req.body.state,
+      address1: req.body.address1,
+      address2: req.body.address2,
+      zip_code: req.body.zip_code,
+      latitude: req.body.latitude,
+      longitude: req.body.longitude,
+      tags: req.body.tags,
       averageRating: 0, // Rating is added in add_review
       numRatings: 0,
       reviews: []
@@ -228,11 +238,18 @@ async function get_place(place_id, fbfriends) {
   var weightedRating = 0;
   var weights = 0;
 
+  var friend_images = [];
+
   for (var i=0; i < review_ids.length; i++) {
     var review = await Review.findById(review_ids[i]);
+    console.log(review);
     if(fbfriends.includes(review.postedBy.toString())) { // cast ID to string
       weightedRating += 1.5 * review.rating;
       weights += 1.5;
+      var user = await User.findById(review.postedBy.toString());
+      console.log(user);
+      console.log(user.image);
+      friend_images.push(user.image);
     }
     else {
       weightedRating += review.rating;
@@ -240,7 +257,12 @@ async function get_place(place_id, fbfriends) {
     }
   }
   place.averageRating = weightedRating/weights;
-  return place;
+  response = {
+      "place": place,
+      "averageRating": weightedRating/weights,
+      "friend_images": friend_images
+  }
+  return response;
 }
 
 // Returns the Place object if place exists or null if it doesn't
