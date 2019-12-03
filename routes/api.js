@@ -94,10 +94,10 @@ router.post('/edit_user', async (req, res) => {
 // Given user, return list of all unique places (in json object format) that the user's friends have been to
 //  Note: needs personal place rating
 //      use getPlace!
-router.get('/get_map', async (req, res) => {
+router.get('/get_map/:user_id', async (req, res) => {
     let user;
     try {
-        user = await User.findById(req.body.user_id);
+        user = await User.findById(req.params.user_id);
     } catch(err) {
         res.status(500).send("Couldn't find user.")
     }
@@ -142,9 +142,6 @@ router.get('/get_map', async (req, res) => {
 /////////////////////////////////////////////////
 //////////////   PLACE ENDPOINTS   //////////////
 /////////////////////////////////////////////////
-
-//          ALL PLACE ENDPOINTS UNTESTED ON MY BRANCH
-
 
 // Edit existing place
 router.post('/edit_place', async (req, res) => {
