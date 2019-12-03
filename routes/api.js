@@ -24,9 +24,13 @@ router.post('/new_user', async (req, res) => {
     for (let i = 0; i < friends_facebook_ids.length; i++) {
         await User.findOne({ facebook_id: friends_facebook_ids[i] }, (err, friend) => {
             if (err) {
-                console.log(`New user's fb friend (${friends_facebook_ids[i]}) was not found in DB`)
+                console.log(`Error querying for new user's fb friend (${friends_facebook_ids[i]})`)
             } else {
-                friends_pulp_ids.push(friend._id)
+                if (friend) {
+                    friends_pulp_ids.push(friend._id)
+                } else {
+                    console.log(`Could not find a user with fb id ${friends_facebook_ids[i]}`)
+                }
             }
         })
     }
@@ -90,8 +94,6 @@ router.post('/edit_user', async (req, res) => {
 })
 
 // Given user, return list of all unique places (in json object format) that the user's friends have been to
-//  Note: needs personal place rating
-//      use getPlace!
 router.get('/get_map/:user_id', async (req, res) => {
     let user;
     try {
