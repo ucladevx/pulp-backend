@@ -269,13 +269,13 @@ async function get_place(place_id, fbfriends) {
 
 // Returns the Place object if place exists or null if it doesn't
 // The request body should contain place_name and an array of fbfriends.
-router.get('/search_place_if_exists', async (req, res) => {
-  var cursor = await Place.find( {name: req.body.place_name } );
+router.get('/search_place_if_exists/:place_name/:user_id', async (req, res) => {
+  var cursor = await Place.find( {name: req.params.place_name } );
   if(cursor.length == 0) {
     console.log("Place not found");
     res.send(null);
   }
-  var user = await User.findById(req.body.user_id);
+  var user = await User.findById(req.params.user_id);
   cursor.forEach(async function(place) {
     var customized_place = await get_place(place._id, user.friends);
     res.json(customized_place);
