@@ -8,7 +8,7 @@ const Place = require('../models/Place');
 const Review = require('../models/Review');
 
 router.get('/', (req, res) => {
-  res.send('hello world v4 cors')
+  res.send('hello world v4.1 cors')
 })
 
 /////////////////////////////////////////////////
@@ -58,17 +58,20 @@ router.post('/new_user', async (req, res) => {
 })
 
 // Find user by ID
-router.get('/find_user/:user_id', (req, res) => {
-    User.findById(req.params.user_id, (err, user) => {
+router.get('/find_user', (req, res) => {
+    User.findById(req.query.user_id, (err, user) => {
         if (err) res.status(500).send("Error finding user");
         res.json(user);
     })
 })
 
 // Delete user by ID
-router.get('/delete_user/:user_id', (req, res) => {
-    User.remove({_id: req.params.user_id}, (err) => {
+router.get('/delete_user', (req, res) => {
+    User.remove({_id: req.query.user_id}, (err) => {
         if (err) res.status(500).send("Error deleting user: " + err);
+
+        // NEED to remove this user from every other user that has it in its friends list
+
         res.send('User has been destroyed.');
     })
 })
@@ -94,10 +97,10 @@ router.post('/edit_user', async (req, res) => {
 })
 
 // Given user, return list of all unique places (in json object format) that the user's friends have been to
-router.get('/get_map/:user_id', async (req, res) => {
+router.get('/get_map', async (req, res) => {
     let user;
     try {
-        user = await User.findById(req.params.user_id);
+        user = await User.findById(req.query.user_id);
     } catch(err) {
         res.status(500).send("Couldn't find user.")
     }
@@ -222,11 +225,11 @@ router.post('/create_place', (req, res) => {
   })
 })
 
-// Take in the place_id and array of fbfriends and return the details of the place
+// Take in the place_id and user_id and return the details of the place
 // and the weighted rating of the place
-router.get('/get_place/:place_id/:user_id', async (req, res) => {
-    var user = await User.findById(req.params.user_id);
-    var place = await get_place(req.params.place_id, user.friends);
+router.get('/get_place', async (req, res) => {
+    var user = await User.findById(req.query.user_id);
+    var place = await get_place(req.query.place_id, user.friends);
     res.json(place);
 })
 
@@ -269,13 +272,13 @@ async function get_place(place_id, fbfriends) {
 
 // Returns the Place object if place exists or null if it doesn't
 // The request body should contain place_name and an array of fbfriends.
-router.get('/search_place_if_exists/:place_name/:user_id', async (req, res) => {
-  var cursor = await Place.find( {name: req.params.place_name } );
+router.get('/search_place_if_exists', async (req, res) => {
+  var cursor = await Place.find( {name: req.query.place_name } );
   if(cursor.length == 0) {
     console.log("Place not found");
     res.send(null);
   }
-  var user = await User.findById(req.params.user_id);
+  var user = await User.findById(req.query.user_id);
   cursor.forEach(async function(place) {
     var customized_place = await get_place(place._id, user.friends);
     res.json(customized_place);
