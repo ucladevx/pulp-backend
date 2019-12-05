@@ -253,8 +253,8 @@ async function get_place(place_id, fbfriends) {
       weights += 1.5;
       var user = await User.findById(review.postedBy.toString());
       console.log(user);
-      console.log(user.image);
-      friend_images.push(user.image);
+      console.log(user.photo);
+      friend_images.push(user.photo);
     }
     else {
       weightedRating += review.rating;
