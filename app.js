@@ -12,6 +12,8 @@ const app = express();
 
 app.use(cors())
 
+// MAKE SURE TO SET TO DEVELOPMENT WHEN DEPLOYING TO AWS
+// TESTING IS ONLY FOR LOCAL
 //environment variable
 //development
 process.env.NODE_ENV = 'testing';
