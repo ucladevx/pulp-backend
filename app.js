@@ -6,13 +6,16 @@ const mongoose = require('mongoose');
 const passport = require('passport');
 const flash = require('connect-flash');
 const session = require("express-session");
+var cors = require('cors')
 
 const app = express();
 
+app.use(cors())
+
 //environment variable
 //development
-//process.env.NODE_ENV = 'testing';
-process.env.NODE_ENV = 'development';
+process.env.NODE_ENV = 'testing';
+//process.env.NODE_ENV = 'development';
 const config = require('./config/config.js');
 
 //mongoose connection
@@ -62,15 +65,16 @@ app.use('/auth/facebook', facebookRouter);
 //app.use('/add_info', addInfoRouter);
 app.use('/change_info', changeInfoRouter);
 
+/*
 //enable cors
 app.use(function(req, res, next) {
 	res.header('Access-Control-Allow-Headers', 'application/json');
-  res.header("Access-Control-Allow-Origin", "*");
+  	res.header("Access-Control-Allow-Origin", "*");
 	res.header('Access-Control-Allow-Methods', '*');
   //res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
   next();
 });
-
+*/
 //auth
 const options = {											// Used for certificate for HTTPS
 	key: fs.readFileSync('server.key'),
