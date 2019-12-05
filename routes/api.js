@@ -8,7 +8,7 @@ const Place = require('../models/Place');
 const Review = require('../models/Review');
 
 router.get('/', (req, res) => {
-  res.send('hello world v4.1 cors')
+  res.send('hello world v5.2 demo day ')
 })
 
 /////////////////////////////////////////////////
