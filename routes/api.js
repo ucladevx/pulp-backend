@@ -8,7 +8,7 @@ const Place = require('../models/Place');
 const Review = require('../models/Review');
 
 router.get('/', (req, res) => {
-  res.send('hello world v5.2 demo day ')
+  res.send('hello world v5.3 demo day ')
 })
 
 /////////////////////////////////////////////////
@@ -244,9 +244,11 @@ async function get_place(place_id, fbfriends) {
   var weights = 0;
 
   var friend_images = [];
+  var reviews = []
 
   for (var i=0; i < review_ids.length; i++) {
     var review = await Review.findById(review_ids[i]);
+    reviews.push(review);
     console.log(review);
     if(fbfriends.includes(review.postedBy.toString())) { // cast ID to string
       weightedRating += 1.5 * review.rating;
@@ -265,7 +267,8 @@ async function get_place(place_id, fbfriends) {
   response = {
       "place": place,
       "averageRating": weightedRating/weights,
-      "friend_images": friend_images
+      "friend_images": friend_images,
+      "reviews": reviews
   }
   return response;
 }
