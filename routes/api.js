@@ -229,6 +229,8 @@ router.post('/create_place', (req, res) => {
 // and the weighted rating of the place
 router.get('/get_place', async (req, res) => {
     var user = await User.findById(req.query.user_id);
+    if(user == null)
+         res.status(500).send("Error user doesn't exist")
     var place = await get_place(req.query.place_id, user.friends);
     res.json(place);
 })
