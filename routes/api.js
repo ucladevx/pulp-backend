@@ -239,7 +239,7 @@ router.get('/get_place', async (req, res) => {
 async function get_place(place_id, fbfriends) {
   var place = await Place.findById(place_id);
   if (place == null)
-    return null;
+    res.status(500).send("Error place doesn't exist")
   var review_ids = place.reviews;
 
   var weightedRating = 0;

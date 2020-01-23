@@ -23,6 +23,10 @@ var ReviewSchema = new mongoose.Schema({
     body: {
         type: String,
         required: false
+    },
+    user_photo: {
+      type: String,
+      required: true
     }
 });
 
