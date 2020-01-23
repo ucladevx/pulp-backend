@@ -8,10 +8,10 @@ const express = require('express');
 const request = require('supertest');
 const router = express.Router();
 
-const mongoose = require('mongoose');
-const User = require('../models/User');
-const Place = require('../models/Place');
-const Review = require('../models/Review');
+const AWS = require('aws-sdk');
+const User = require('../createTables/UsersCreateTable');
+const Place = require('../createTables/PlacesCreateTable');
+const Review = require('../createTables/ReviewsCreateTable');
 
 router.get('/', (req, res) => {
   res.send('hello world v5.4')
@@ -27,13 +27,21 @@ router.post('/new_user', async (req, res) => {
     let friends_facebook_ids = req.body.friends;    // array of friends' FB id's
     let friends_pulp_ids = [];                      // array of friends' Pulp id's
 
+    var docClient = new AWS.DynamoDB.DocumentClient();
+
     for (let i = 0; i < friends_facebook_ids.length; i++) {
-        await User.findOne({ facebook_id: friends_facebook_ids[i] }, (err, friend) => {
+        var params = {
+            TableName:"Users",
+            KeyConditionExpression: "#key=:value",
+            ExpressionAttributeNames: {"#key":"facebook_id"},
+            ExpressionAttributeValues: {":value":friends_facebook_ids[i]}
+        };
+        await docClient.query(params, (err, friend) => {
             if (err) {
-                console.log(`Error querying for new user's fb friend (${friends_facebook_ids[i]})`)
+                console.log(`Error querying for new user's fb friend (${friends_facebook_ids[i]})`,JSON.stringify(err, null, 2));
             } else {
                 if (friend) {
-                    friends_pulp_ids.push(friend._id)
+                    friends_pulp_ids.push(friend.user_id);
                 } else {
                     console.log(`Could not find a user with fb id ${friends_facebook_ids[i]}`)
                 }
@@ -42,25 +50,67 @@ router.post('/new_user', async (req, res) => {
     }
 
     // Get user info from req.body
-    let newUser = new User({
-        first_name:    req.body.first_name,
-        last_name:     req.body.last_name,
-        photo:         req.body.photo,
-        friends:       friends_pulp_ids,
-        places:        [],
-        access_token:  req.body.access_token,
-        facebook_id:   req.body.facebook_id
-    })
+    var user = {
+        TableName: "Users",
+        Item: {
+
+            "first_name": {S: req.body.first_name},
+            "last_name":  {S: req.body.last_name },
+            "photo":      {S: req.body.photo},
+            "friends":    { SS: friends_pulp_ids },   // list of friends' pulp db id's
+            "places":     { SS: [] },   // list of visited places' pulp db id's
+
+            // Auth info (unsure whether they are needed, but storing just in case for now)
+            "access_token":  { S: req.body.access_token },    // I don't think this will be needed bc no need to query facebook after initial setup, but keep for now
+            "facebook_id":   { S: req.body.facebook_id }
+        }
+    }
 
     // Save new user
-    newUser.save((err, user) => {
-        if (err) res.status(500).send("Error saving user: " + err);
-        console.log("saved new user");
-        res.send(newUser._id);
+    dynamodb.putItem(user, function(err ,data){
+        if(err) console.log(err, err.stack);
+        else console.log(data);
     })
 
     // Add new user to each of new_user's friends already on the app
-    User.updateFriends(newUser);
+
+
+    for(let i = 0; i < friends_pulp_ids.length; i++){
+        var params = {
+            TableName:"Users",
+            KeyConditionExpression: "#key=:value",
+            ExpressionAttributeNames: {"#key":"user_id"},
+            ExpressionAttributeValues: {":value":friends_pulp_ids[i]}
+        };
+        await docClient.query(params, (err, friend) => {
+            if (err) {
+                console.log("Error in reaching pulp friend",JSON.stringify(err, null, 2));
+            } else {
+                if (friend) {
+                    var update = {
+                        TableName:"Users",
+                        UpdateExpression:"set friends = list_append(friends, :l)",
+                        ExpressionAttributeValues:{
+                            ":l": friend.user_id,
+                        },
+                        ReturnValues : "UPDATE_NEW"
+                    };
+                    console.log("Updating the item...");
+                    docClient.update(update, function(err, data) {
+                        if (err) {
+                            console.error("Unable to update item. Error JSON:", JSON.stringify(err, null, 2));
+                        } else {
+                            console.log("UpdateItem succeeded:", JSON.stringify(data, null, 2));
+                        }
+                    });
+
+                } else {
+                    console.log(`Could not find a user with fb id ${friends_facebook_ids[i]}`)
+                }
+            }
+        })
+
+    }
 })
 
 // Find user by ID
