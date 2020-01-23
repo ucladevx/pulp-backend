@@ -268,7 +268,7 @@ async function get_place(place_id, fbfriends) {
       "place": place,
       "averageRating": weightedRating/weights,
       "friend_images": friend_images,
-      "reviews": reviews
+      "reviews": reviews // []
   }
   return response;
 }
