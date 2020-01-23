@@ -182,7 +182,8 @@ router.post('/add_review', async (req, res) => {
     postedBy: req.body.user_id,
     place: req.body.place_id,
     rating: req.body.rating,
-    body: req.body.body
+    body: req.body.body,
+    user_photo: req.body.user_photo
   })
   console.log(newReview);
   newReview.save(async (err, review) => {
