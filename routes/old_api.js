@@ -1,6 +1,6 @@
 /*
 
- * NEW API ROUTES USING DYNAMO
+ * OLD API ROUTES USING MONGO
 
 */
 
@@ -235,15 +235,11 @@ router.post('/create_place', (req, res) => {
 // Take in the place_id and user_id and return the details of the place
 // and the weighted rating of the place
 router.get('/get_place', async (req, res) => {
-    var user = await User.findById(req.body.user_id);
-    if(user == null) {
-        res.status(500).send("Error user doesn't exist")
-        console.log("user doesn't exist")
-    }
-    else {
-      var place = await get_place(req.body.place_id, user.friends);
-      res.json(place);
-    }
+    var user = await User.findById(req.query.user_id);
+    if(user == null)
+         res.status(500).send("Error user doesn't exist")
+    var place = await get_place(req.query.place_id, user.friends);
+    res.json(place);
 })
 
 // The logic behind get_place api route.
@@ -289,16 +285,12 @@ async function get_place(place_id, fbfriends) {
 // Returns the Place object if place exists or null if it doesn't
 // The request body should contain place_name and an array of fbfriends.
 router.get('/search_place_if_exists', async (req, res) => {
-  var cursor = await Place.find({
-      name: req.body.name,
-      latitude: req.body.latitude,
-      longitude: req.body.longitude
-  });
+  var cursor = await Place.find( {name: req.query.place_name } );
   if(cursor.length == 0) {
     console.log("Place not found");
     res.send(null);
   }
-  var user = await User.findById(req.body.user_id);
+  var user = await User.findById(req.query.user_id);
   cursor.forEach(async function(place) {
     var customized_place = await get_place(place._id, user.friends);
     res.json(customized_place);
