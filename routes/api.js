@@ -8,7 +8,7 @@ const Place = require('../models/Place');
 const Review = require('../models/Review');
 
 router.get('/', (req, res) => {
-  res.send('hello world v5.3 demo day ')
+  res.send('hello world v5.4')
 })
 
 /////////////////////////////////////////////////
@@ -182,7 +182,8 @@ router.post('/add_review', async (req, res) => {
     postedBy: req.body.user_id,
     place: req.body.place_id,
     rating: req.body.rating,
-    body: req.body.body
+    body: req.body.body,
+    user_photo: req.body.user_photo
   })
   console.log(newReview);
   newReview.save(async (err, review) => {
@@ -229,6 +230,8 @@ router.post('/create_place', (req, res) => {
 // and the weighted rating of the place
 router.get('/get_place', async (req, res) => {
     var user = await User.findById(req.query.user_id);
+    if(user == null)
+         res.status(500).send("Error user doesn't exist")
     var place = await get_place(req.query.place_id, user.friends);
     res.json(place);
 })
@@ -237,7 +240,7 @@ router.get('/get_place', async (req, res) => {
 async function get_place(place_id, fbfriends) {
   var place = await Place.findById(place_id);
   if (place == null)
-    return null;
+    res.status(500).send("Error place doesn't exist")
   var review_ids = place.reviews;
 
   var weightedRating = 0;
