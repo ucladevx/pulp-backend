@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const https = require('https');
 const mongoose = require('mongoose');
+const AWS= require('aws-sdk');
 const passport = require('passport');
 const flash = require('connect-flash');
 const session = require("express-session");

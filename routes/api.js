@@ -3,15 +3,23 @@
  * NEW API ROUTES USING DYNAMO
 
 */
+const mongoose = require('mongoose');
+const Place = require('../models/Place');
+const Review = require('../models/Review');
 
 const express = require('express');
 const request = require('supertest');
 const router = express.Router();
-
 const AWS = require('aws-sdk');
-const User = require('../createTables/UsersCreateTable');
-const Place = require('../createTables/PlacesCreateTable');
-const Review = require('../createTables/ReviewsCreateTable');
+ const User = require('../createTables/UsersCreateTable');
+ const Place = require('../createTables/PlacesCreateTable');
+ const Review = require('../createTables/ReviewsCreateTable');
+AWS.config.update({
+    region: "us-west-2",
+    endpoint: "http://localhost:8000"
+});
+
+var dynamodb = new AWS.DynamoDB();
 
 router.get('/', (req, res) => {
   res.send('hello world v5.4')
@@ -23,23 +31,56 @@ router.get('/', (req, res) => {
 
 // Insert new user into database
 router.post('/new_user', async (req, res) => {
-
+    console.log(req.body);
     let friends_facebook_ids = req.body.friends;    // array of friends' FB id's
     let friends_pulp_ids = [];                      // array of friends' Pulp id's
 
     var docClient = new AWS.DynamoDB.DocumentClient();
+    var tableUpdate = {
+        TableName : "Users",
+        AttributeDefinitions: [{
+            AttributeName: "facebook_id",
+            AttributeType: "S"
+        }],
+        GlobalSecondaryIndexUpdates:[
+            {
+                Create: {
+                    IndexName: "facebook_id_index",
+                    ProvisionedThroughput: {
+                        "WriteCapacityUnits": 10,
+                        "ReadCapacityUnits": 5
+                    },
+                    KeySchema: [
+                        {KeyType: "HASH", AttributeName: "facebook_id"}
+                    ],
+                    Projection: {
+                        ProjectionType: "ALL"
+                    }
+                }
+            }
+        ]
+    };
+    dynamodb.updateTable(tableUpdate, function (err, data) {
+        if(err){
+            console.log("Error in updating table", JSON.stringify(err, null, 2));
+        }else{
+            console.log("Succeed in Updating");
+            console.log(data);
+        }
+    })
 
     for (let i = 0; i < friends_facebook_ids.length; i++) {
         var params = {
             TableName:"Users",
-            KeyConditionExpression: "#key=:value",
-            ExpressionAttributeNames: {"#key":"facebook_id"},
-            ExpressionAttributeValues: {":value":friends_facebook_ids[i]}
+            IndexName:"facebook_id_index",
+            KeyConditionExpression: "facebook_id = :value",
+            ExpressionAttributeValues: {":value":{ S: friends_facebook_ids[i] }}
         };
         await docClient.query(params, (err, friend) => {
             if (err) {
                 console.log(`Error querying for new user's fb friend (${friends_facebook_ids[i]})`,JSON.stringify(err, null, 2));
             } else {
+                console.log(friend);
                 if (friend) {
                     friends_pulp_ids.push(friend.user_id);
                 } else {
@@ -53,12 +94,11 @@ router.post('/new_user', async (req, res) => {
     var user = {
         TableName: "Users",
         Item: {
-
             "first_name": {S: req.body.first_name},
             "last_name":  {S: req.body.last_name },
             "photo":      {S: req.body.photo},
             "friends":    { SS: friends_pulp_ids },   // list of friends' pulp db id's
-            "places":     { SS: [] },   // list of visited places' pulp db id's
+            "places":     { SS: req.body.places },   // list of visited places' pulp db id's
 
             // Auth info (unsure whether they are needed, but storing just in case for now)
             "access_token":  { S: req.body.access_token },    // I don't think this will be needed bc no need to query facebook after initial setup, but keep for now
@@ -78,13 +118,13 @@ router.post('/new_user', async (req, res) => {
     for(let i = 0; i < friends_pulp_ids.length; i++){
         var params = {
             TableName:"Users",
-            KeyConditionExpression: "#key=:value",
-            ExpressionAttributeNames: {"#key":"user_id"},
-            ExpressionAttributeValues: {":value":friends_pulp_ids[i]}
+            IndexName:"facebook_id_index",
+            KeyConditionExpression: "facebook_id = :value",
+            ExpressionAttributeValues: {":value":{ S: friends_pulp_ids[i] }}
         };
         await docClient.query(params, (err, friend) => {
             if (err) {
-                console.log("Error in reaching pulp friend",JSON.stringify(err, null, 2));
+                console.log("Error in reaching pulp friend, ",JSON.stringify(err, null, 2));
             } else {
                 if (friend) {
                     var update = {
@@ -105,7 +145,7 @@ router.post('/new_user', async (req, res) => {
                     });
 
                 } else {
-                    console.log(`Could not find a user with fb id ${friends_facebook_ids[i]}`)
+                    console.log(`Could not find a user with fb id ${friends_facebook_ids[i]}`);
                 }
             }
         })
@@ -113,7 +153,7 @@ router.post('/new_user', async (req, res) => {
     }
 })
 
-// Find user by ID
+Find user by ID
 router.get('/find_user', (req, res) => {
     User.findById(req.query.user_id, (err, user) => {
         if (err) res.status(500).send("Error finding user");
