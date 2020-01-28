@@ -4,16 +4,16 @@
 
 */
 const mongoose = require('mongoose');
-const Place = require('../models/Place');
-const Review = require('../models/Review');
+//const Place = require('../models/Place');
+//const Review = require('../models/Review');
 
 const express = require('express');
 const request = require('supertest');
 const router = express.Router();
 const AWS = require('aws-sdk');
- const User = require('../createTables/UsersCreateTable');
- const Place = require('../createTables/PlacesCreateTable');
- const Review = require('../createTables/ReviewsCreateTable');
+const User = require('../createTables/UsersCreateTable');
+const Place = require('../createTables/PlacesCreateTable');
+const Review = require('../createTables/ReviewsCreateTable');
 AWS.config.update({
     region: "us-west-2",
     endpoint: "http://localhost:8000"
@@ -153,7 +153,7 @@ router.post('/new_user', async (req, res) => {
     }
 })
 
-Find user by ID
+//Find user by IDnd
 router.get('/find_user', (req, res) => {
     User.findById(req.query.user_id, (err, user) => {
         if (err) res.status(500).send("Error finding user");
