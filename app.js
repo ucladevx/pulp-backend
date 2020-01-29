@@ -28,7 +28,7 @@ AWS.config.update({
 
 var dynamodb = new AWS.DynamoDB();
 
-var createTableIfNotExist = function createTableIfNotExist(tableName, createFunction) {
+var createTableIfNotExist = async function createTableIfNotExist(tableName, createFunction) {
 	console.log("Check table: " + tableName);
 	var params = {
 		TableName: tableName /* required */
@@ -38,19 +38,70 @@ var createTableIfNotExist = function createTableIfNotExist(tableName, createFunc
 		console.log(data)
 		if (err) {
 			status="false";
-			console.log("there is some kind of error")
-			//mmeaning table could not be found
-			createFunction()
-			//console.log(err, err.stack); // an error occurred
+			//console.log(`there is some kind of error --> ${err}`)
+			// table could not be found --> create it
+            createFunction()
+
+            // initialize values for new Tables_Data table
+            if (tableName === "Tables_Data") {
+                // Init Tables_Data len
+                console.log("init table_data");
+                var init0 = {
+                    TableName: "Tables_Data",
+                    Item: { "table_id": { N: "0" }, "len": { N: "4" } },
+                    ReturnConsumedCapacity: "TOTAL"
+                };
+                dynamodb.putItem(init0, async (err, data) => {
+                    if (err)    { console.error(`Unable to initialize Tables_Data len to 4 --> ${err}`); }
+                    else        { console.log("Initialized Tables_Data len to 4."); }
+                });
+
+                // Init User len
+                console.log("init Users");
+                var init1 = {
+                    TableName: "Tables_Data",
+                    Item: { "table_id": { N: "1" }, "len": { N: "0" } },
+                    ReturnConsumedCapacity: "TOTAL"
+                };
+                dynamodb.putItem(init1, async (err, data) => {
+                    if (err)    { console.error(`Unable to initialize Users len to 0 --> ${err}`); }
+                    else        { console.log("Initialized Users len to 0."); }
+                });
+
+                // Init Places len
+                console.log("init Places");
+                var init2 = {
+                    TableName: "Tables_Data",
+                    Item: { "table_id": { N: "2" }, "len": { N: "0" } },
+                    ReturnConsumedCapacity: "TOTAL"
+                };
+                dynamodb.putItem(init2, async (err, data) => {
+                    if (err)    { console.error(`Unable to initialize Places len to 0 --> ${err}`); }
+                    else        { console.log("Initialized Places len to 0."); }
+                });
+
+                // Init Reviews len
+                console.log("init Reviews");
+                var init3 = {
+                    TableName: "Tables_Data",
+                    Item: { "table_id": { N: "3" }, "len": { N: "0" } },
+                    ReturnConsumedCapacity: "TOTAL"
+                };
+                dynamodb.putItem(init3, async (err, data) => {
+                    if (err)    { console.error(`Unable to initialize Reviews len to 0 --> ${err}`); }
+                    else        { console.log("Initialized Reviews len to 0."); }
+                });
+            }
 		}
 		else {
 			status=("true");
-			console.log(data); // successful response
+            console.log(data); // successful response
 		}
 		console.log("STATUS===========>"+status);
 	});
 }
 
+// check if any tables need to be created
 var createTables = async function createTables(){
 	await createTableIfNotExist("Places", PlacesCreateTable.createPlacesTable)
 	console.log("create table one is done")

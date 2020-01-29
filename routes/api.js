@@ -261,13 +261,11 @@ router.post('/add_review', async (req, res) => {
 */
 //Create new place (only occur once when someone checked in for the first time)
 router.post('/create_place', async (req, res) => {
-
     // get length of Places table
     get_table_len(PLACES)
     .then((length) => {
         // converts to int, adds one, converts back to string to store as new place's id
         let new_id = (parseInt(length, 10) + 1).toString();
-
         var params = {
             TableName: "Places",
             Item: {
