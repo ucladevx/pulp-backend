@@ -8,7 +8,6 @@ var createTables_DataTable = function createTables_DataTable() {
     endpoint: "http://localhost:8000"
     });
 
-
     // test dynamodb external
     // COMMENT OUT WHEN TESTING ON LOCAL
     // AWS.config.update({region: "us-west-2"});
