@@ -8,11 +8,26 @@ const express = require('express');
 const request = require('supertest');
 const router = express.Router();
 
+
+// for testing. eventually change to use config file?
+var AWS = require("aws-sdk");
+AWS.config.update({region:'us-east-1'});
+var dynamodb = new AWS.DynamoDB({endpoint: "http://localhost:8000"});
+
+/*
 const mongoose = require('mongoose');
 const User = require('../models/User');
 const Place = require('../models/Place');
 const Review = require('../models/Review');
+*/
 
+// Table ID Definitions
+const TABLES_DATA   = "0";
+const USERS         = "1";
+const PLACES        = "2";
+const REVIEWS       = "3";
+
+// Base endpoint
 router.get('/', (req, res) => {
   res.send('hello world v5.4')
 })
@@ -210,26 +225,102 @@ router.post('/add_review', async (req, res) => {
 
 //Create new place (only occur once when someone checked in for the first time)
 router.post('/create_place', (req, res) => {
-  let newPlace = new Place({
-      name: req.body.name,
-      image: req.body.image,
-      city: req.body.city,
-      state: req.body.state,
-      address1: req.body.address1,
-      address2: req.body.address2,
-      zip_code: req.body.zip_code,
-      latitude: req.body.latitude,
-      longitude: req.body.longitude,
-      tags: req.body.tags,
-      averageRating: 0, // Rating is added in add_review
-      numRatings: 0,
-      reviews: []
-  })
-  newPlace.save((err, place) => {
-      if (err) res.status(500).send("Error creating new place")
-      console.log("created new place")
-      res.send(`New place ${place._id} has been created.`)
-  })
+
+    // get length of Places table and add one to get new id number
+    var table_params = {
+        TableName: "Tables_Data",
+        ExpressionAttributeValues: {
+            ":v1": {
+                N: PLACES
+            }
+        },
+        KeyConditionExpression: "table_id = :v1",
+    };
+    dynamodb.query(table_params, function(err, data) {
+        if (err) {
+            res.status(500).send("Internal Table Lookup Error");
+        } else {
+            let length = data.Items[0].len.N;                       // returns type string from db
+            let new_id = (parseInt(length, 10) + 1).toString();     // converts to int, adds one, converts back to string to store
+
+            var params = {
+                Item: {
+                    "place_id": {
+                        N: new_id
+                    },
+                    "name": {
+                        S: req.body.name
+                    },
+                    "image": {
+                        S: req.body.image
+                    },
+                    "city": {
+                        S: req.body.city
+                    },
+                    "state": {
+                        S: req.body.state
+                    },
+                    "address1": {
+                        S: req.body.address1
+                    },
+                    "address2": {
+                        S: req.body.address2
+                    },
+                    "zip_code": {
+                        S: req.body.zip_code
+                    },
+                    "latitude": {
+                        N: req.body.latitude
+                    },
+                    "longitude": {
+                        N: req.body.longitude
+                    },
+                    "tags": {
+                        SS: req.body.tags
+                    },
+                    "averageRating": {
+                        N: "0"        // Rating is added in add_review
+                    },
+                    "numRatings": {
+                        N: "0"
+                    },
+                    "reviews": {
+                        NS: ["0"]      // not allowed to be empty
+                    }
+                },
+                ReturnConsumedCapacity: "TOTAL",
+                TableName: "Places"
+            };
+            dynamodb.putItem(params, function(err, place) {
+                if (err) {
+                    res.status(500).send(`Error creating new place --> ${err}`)
+                } else {
+                    // increment length of table with table_id = PLACES bc adding place into it                     !!!TURN INTO HELPER FUNCTION!!!
+                    var update_params = {
+                        TableName: "Tables_Data",
+                        Key: {
+                            table_id: {
+                                N: PLACES
+                            }
+                        },
+                        UpdateExpression: "set len = len + :one",
+                        ExpressionAttributeValues: {
+                            ":one": {
+                                N: "1"
+                            }
+                        }
+                    };
+                    dynamodb.updateItem(update_params, function(err, data) {
+                        if (err) {
+                            res.status(500).send(`Error updating Places table length in Tables_Data --> ${err}`);
+                        } else {
+                            res.send(`New place (${new_id}) has been created.`)
+                        }
+                    });
+                }
+            });
+        }
+    })
 })
 
 // Take in the place_id and user_id and return the details of the place

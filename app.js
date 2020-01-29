@@ -12,18 +12,20 @@ const app = express();
 
 app.use(cors())
 
-// MAKE SURE TO SET TO DEVELOPMENT WHEN DEPLOYING TO AWS
-// TESTING IS ONLY FOR LOCAL
+// MAKE SURE TO SET TO TESTING WHEN DEPLOYING TO AWS
+// DEVELOPMENT IS ONLY FOR LOCAL
 //environment variable
 //development
-process.env.NODE_ENV = 'testing';
-//process.env.NODE_ENV = 'development';
+//process.env.NODE_ENV = 'testing';
+process.env.NODE_ENV = 'development';
 const config = require('./config/config.js');
 
-//mongoose connection
-console.log(global.gConfig.mongo_url);
-console.log(global.gConfig.db);
+//db connection
+console.log(global.gConfig.dynamo_url);
+//console.log(global.gConfig.mongo_url);
+//console.log(global.gConfig.db);
 
+/*
 mongoose.connect(global.gConfig.mongo_url, ({dbName: global.gConfig.db}, { useNewUrlParser: true}));
 let db = mongoose.connection;
 mongoose.Promise = global.Promise;
@@ -35,9 +37,16 @@ db.once('open', () => {
 	});
 });
 db.on('error', console.error.bind(console, 'conn error:'));
+*/
+//routers
 
-//router
-const apiRouter = require('./routes/api');
+    // old -- mongo
+//const apiRouter = require('./routes/old_api');
+
+    // new -- dynamo
+const apiRouter = require('./routes/api')
+
+
 //const createUserRouter = require('./routes/create_user');
 const loginRouter = require('./routes/login');
 const facebookRouter = require('./routes/facebook_login');
