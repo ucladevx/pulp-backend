@@ -11,7 +11,8 @@ const router = express.Router();
 
 // for testing. eventually change to use config file?
 var AWS = require("aws-sdk");
-AWS.config.update({region:'us-east-1'});
+AWS.config.update({region:'us-west-2'});
+//AWS.config.update({region:'us-east-1'});
 var dynamodb = new AWS.DynamoDB({endpoint: "http://localhost:8000"});
 
 /*

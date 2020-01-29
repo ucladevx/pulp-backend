@@ -8,6 +8,60 @@ const flash = require('connect-flash');
 const session = require("express-session");
 var cors = require('cors')
 
+var AWS = require("aws-sdk");
+
+//import modules to create table
+var PlacesCreateTable = require("./createTables/PlacesCreateTable")
+var ReviewsCreateTable = require("./createTables/ReviewsCreateTable")
+var UsersCreateTable = require("./createTables/UsersCreateTable")
+var Tables_DataCreateTable = require("./createTables/Tables_DataCreateTable")
+
+AWS.config.update({
+  region: "us-west-2",
+  endpoint: "http://localhost:8000"
+});
+
+// test dynamodb external
+// COMMENT THIS OUT WHEN tESTING ON LOCAL
+//AWS.config.update({region: "us-west-2"});
+
+
+var dynamodb = new AWS.DynamoDB();
+
+var createTableIfNotExist = function createTableIfNotExist(tableName, createFunction) {
+	console.log("Check table: " + tableName);
+	var params = {
+		TableName: tableName /* required */
+	};
+	dynamodb.describeTable(params, function(err, data) {
+		console.log("in describe table")
+		console.log(data)
+		if (err) {
+			status="false";
+			console.log("there is some kind of error")
+			//mmeaning table could not be found
+			createFunction()
+			//console.log(err, err.stack); // an error occurred
+		}
+		else {
+			status=("true");
+			console.log(data); // successful response
+		}
+		console.log("STATUS===========>"+status);
+	});
+}
+
+var createTables = async function createTables(){
+	await createTableIfNotExist("Places", PlacesCreateTable.createPlacesTable)
+	console.log("create table one is done")
+	await createTableIfNotExist("Reviews", ReviewsCreateTable.createReviewsTable)
+	await createTableIfNotExist("Users", UsersCreateTable.createUsersTable)
+	await createTableIfNotExist("Tables_Data", Tables_DataCreateTable.createTables_DataTable)
+}
+
+createTables()
+
+
 const app = express();
 
 app.use(cors())
