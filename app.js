@@ -29,37 +29,80 @@ AWS.config.update({
 
 var dynamodb = new AWS.DynamoDB();
 
-var createTableIfNotExist = function createTableIfNotExist(tableName, createFunction) {
-	console.log("Check table: " + tableName);
+var createTableIfNotExist = async function createTableIfNotExist(tableName, createFunction) {
 	var params = {
 		TableName: tableName /* required */
 	};
 	dynamodb.describeTable(params, function(err, data) {
-		console.log("in describe table")
-		console.log(data)
 		if (err) {
-			status="false";
-			console.log("there is some kind of error")
-			//mmeaning table could not be found
-			createFunction()
-			//console.log(err, err.stack); // an error occurred
+            // table could not be found --> create it
+            console.log(`${tableName} table missing, attempting to create it ...`)
+            createFunction()
+            .then(() => {
+                // initialize values for a new Tables_Data table
+                if (tableName === "Tables_Data") {
+                    // Init Tables_Data len
+                    var init0 = {
+                        TableName: "Tables_Data",
+                        Item: { "table_id": { N: "0" }, "len": { N: "4" } },
+                        ReturnConsumedCapacity: "TOTAL"
+                    };
+                    dynamodb.putItem(init0, async (err, data) => {
+                        if (err)    { console.error(`Unable to initialize Tables_Data len to 4 --> ${err}`); }
+                        else        { console.log("Initialized Tables_Data len to 4."); }
+                    });
+
+                    // Init User len
+                    var init1 = {
+                        TableName: "Tables_Data",
+                        Item: { "table_id": { N: "1" }, "len": { N: "0" } },
+                        ReturnConsumedCapacity: "TOTAL"
+                    };
+                    dynamodb.putItem(init1, async (err, data) => {
+                        if (err)    { console.error(`Unable to initialize Users len to 0 --> ${err}`); }
+                        else        { console.log("Initialized Users len to 0."); }
+                    });
+
+                    // Init Places len
+                    var init2 = {
+                        TableName: "Tables_Data",
+                        Item: { "table_id": { N: "2" }, "len": { N: "0" } },
+                        ReturnConsumedCapacity: "TOTAL"
+                    };
+                    dynamodb.putItem(init2, async (err, data) => {
+                        if (err)    { console.error(`Unable to initialize Places len to 0 --> ${err}`); }
+                        else        { console.log("Initialized Places len to 0."); }
+                    });
+
+                    // Init Reviews len
+                    var init3 = {
+                        TableName: "Tables_Data",
+                        Item: { "table_id": { N: "3" }, "len": { N: "0" } },
+                        ReturnConsumedCapacity: "TOTAL"
+                    };
+                    dynamodb.putItem(init3, async (err, data) => {
+                        if (err)    { console.error(`Unable to initialize Reviews len to 0 --> ${err}`); }
+                        else        { console.log("Initialized Reviews len to 0."); }
+                    });
+                }
+            })
+            .catch(() => {});
 		}
 		else {
-			status=("true");
-			console.log(data); // successful response
+            console.log(`${tableName} table already created.`);
 		}
-		console.log("STATUS===========>"+status);
 	});
 }
 
-var createTables = async function createTables(){
+// check if any tables need to be created
+var createTables = async function createTables() {
 	await createTableIfNotExist("Places", PlacesCreateTable.createPlacesTable)
-	console.log("create table one is done")
 	await createTableIfNotExist("Reviews", ReviewsCreateTable.createReviewsTable)
 	await createTableIfNotExist("Users", UsersCreateTable.createUsersTable)
 	await createTableIfNotExist("Tables_Data", Tables_DataCreateTable.createTables_DataTable)
 }
 
+// ensure that all 4 tables are created and initialized properly
 createTables()
 
 

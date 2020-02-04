@@ -1,40 +1,48 @@
 var createTables_DataTable = function createTables_DataTable() {
-    var AWS = require("aws-sdk");
+    return new Promise((resolve, reject) => {
+        var AWS = require("aws-sdk");
 
-    
-    // UNCOMMENT WHEN TESTING ON LOCAL
-    AWS.config.update({
-    region: "us-west-2",
-    endpoint: "http://localhost:8000"
-    });
 
-    // test dynamodb external
-    // COMMENT OUT WHEN TESTING ON LOCAL
-    // AWS.config.update({region: "us-west-2"});
+        // UNCOMMENT WHEN TESTING ON LOCAL
+        AWS.config.update({
+        region: "us-west-2",
+        endpoint: "http://localhost:8000"
+        });
 
-    var dynamodb = new AWS.DynamoDB();
+        // test dynamodb external
+        // COMMENT OUT WHEN TESTING ON LOCAL
+        // AWS.config.update({region: "us-west-2"});
 
-    var params = {
-        TableName : "Tables_Data",
-        KeySchema: [
-            { AttributeName: "table_id", KeyType: "HASH"},  //Partition key
-        ],
-        AttributeDefinitions: [
-            { AttributeName: "table_id", AttributeType: "N" },
-        ],
-        ProvisionedThroughput: {
-            ReadCapacityUnits: 10,
-            WriteCapacityUnits: 10
-        }
-    };
+        var dynamodb = new AWS.DynamoDB();
 
-    dynamodb.createTable(params, function(err, data) {
-        if (err) {
-            console.error("Unable to create table. Error JSON:", JSON.stringify(err, null, 2));
-        } else {
-            console.log("Created table. Table description JSON:", JSON.stringify(data, null, 2));
-        }
-    });
+        var params = {
+            TableName : "Tables_Data",
+            KeySchema: [
+                { AttributeName: "table_id", KeyType: "HASH"},  //Partition key
+            ],
+            AttributeDefinitions: [
+                { AttributeName: "table_id", AttributeType: "N" },
+            ],
+            ProvisionedThroughput: {
+                ReadCapacityUnits: 10,
+                WriteCapacityUnits: 10
+            }
+        };
+
+        dynamodb.createTable(params, function(err, data) {
+            if (err) {
+                console.error("");
+                console.error("--> Unable to create Tables_Data table!");
+                console.error("Error JSON:", JSON.stringify(err, null, 2));
+                return reject();
+            } else {
+                console.log("");
+                console.log("--> Created Tables_Data table!");
+                console.log("Table description JSON:", JSON.stringify(data, null, 2));
+                resolve();
+            }
+        });
+    })
 }
 
 //createTables_DataTable()
