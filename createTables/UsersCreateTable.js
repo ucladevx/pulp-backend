@@ -17,15 +17,36 @@ var createUsersTable = function createUsersTable() {
         var params = {
             TableName : "Users",
             KeySchema: [
-                { AttributeName: "user_id", KeyType: "HASH"},  //Partition key
+                { AttributeName: "user_id", KeyType: "HASH"}, //Partition key
             ],
             AttributeDefinitions: [
                 { AttributeName: "user_id", AttributeType: "N" },
+                { AttributeName: "facebook_id", AttributeType: "S"},
+            ],
+            GlobalSecondaryIndexes: [
+                {
+                    IndexName: "facebook_id_index",
+                    Projection: {
+                        ProjectionType: "ALL"
+                    },
+                    ProvisionedThroughput: {
+                        "WriteCapacityUnits": 5,
+                        "ReadCapacityUnits": 10
+                    },
+                    //IndexStatus: "CREATING",
+                    KeySchema: [
+                        {
+                            KeyType: "HASH",
+                            AttributeName: "facebook_id",
+                        }
+                    ]
+                }
             ],
             ProvisionedThroughput: {
                 ReadCapacityUnits: 10,
                 WriteCapacityUnits: 10
-            }
+            },
+
         };
 
         dynamodb.createTable(params, function(err, data) {

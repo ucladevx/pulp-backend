@@ -10,32 +10,15 @@ const mongoose = require('mongoose');
 const express = require('express');
 const request = require('supertest');
 const router = express.Router();
-const AWS = require('aws-sdk');
 const User = require('../createTables/UsersCreateTable');
 const Place = require('../createTables/PlacesCreateTable');
 const Review = require('../createTables/ReviewsCreateTable');
+var AWS = require("aws-sdk");
 AWS.config.update({
     region: "us-west-2",
     endpoint: "http://localhost:8000"
 });
-
-<<<<<<< HEAD
-var dynamodb = new AWS.DynamoDB();
-=======
-
-// for testing. eventually change to use config file?
-var AWS = require("aws-sdk");
-AWS.config.update({region:'us-west-2'});
-//AWS.config.update({region:'us-east-1'});
 var dynamodb = new AWS.DynamoDB({endpoint: "http://localhost:8000"});
-
-/*
-const mongoose = require('mongoose');
-const User = require('../models/User');
-const Place = require('../models/Place');
-const Review = require('../models/Review');
-*/
->>>>>>> ded5a695e28ebe39cd74b2ee99b0603c097da7d0
 
 // Table ID Definitions
 const TABLES_DATA   = "0";
@@ -86,92 +69,124 @@ async function increment_table_len(table_id_p) {
 /////////////////////////////////////////////////
 //////////////   USER ENDPOINTS   ///////////////
 /////////////////////////////////////////////////
-/*
+
 // Insert new user into database
 router.post('/new_user', async (req, res) => {
     console.log(req.body);
     let friends_facebook_ids = req.body.friends;    // array of friends' FB id's
-    let friends_pulp_ids = [];                      // array of friends' Pulp id's
+    let friends_pulp_ids = ["dummystring"];                      // array of friends' Pulp id's
 
-    var docClient = new AWS.DynamoDB.DocumentClient();
-    var tableUpdate = {
-        TableName : "Users",
-        AttributeDefinitions: [{
-            AttributeName: "facebook_id",
-            AttributeType: "S"
-        }],
-        GlobalSecondaryIndexUpdates:[
-            {
-                Create: {
-                    IndexName: "facebook_id_index",
-                    ProvisionedThroughput: {
-                        "WriteCapacityUnits": 10,
-                        "ReadCapacityUnits": 5
-                    },
-                    KeySchema: [
-                        {KeyType: "HASH", AttributeName: "facebook_id"}
-                    ],
-                    Projection: {
-                        ProjectionType: "ALL"
+    get_table_len(USERS).then((length) => {
+        let new_id = (parseInt(length, 10) + 1).toString();
+        for (let i = 0; i < friends_facebook_ids.length; i++) {
+            var params = {
+                TableName: "Users",
+                IndexName: "facebook_id_index",
+                KeyConditionExpression: "#key = :value",
+                ExpressionAttributeNames: {
+                    "#key":  "facebook_id"
+                },
+                ExpressionAttributeValues: {
+                    ":value": {S: friends_facebook_ids[i]},
+                }
+            };
+            dynamodb.query(params, (err, friend) => {
+                if (err) {
+                    res.status(500).send(`Error querying for new user's fb friend (${friends_facebook_ids[i]}) --> ${err}`);
+                } else {
+                    console.log(friend);
+                    if (friend.Items.length!=0) {
+                        friends_pulp_ids.push(friend.Items[0].facebook_id.S);
+                        console.log(friends_pulp_ids);
+                    } else {
+                        console.log(`Could not find a user with fb id ${friends_facebook_ids[i]}`)
                     }
                 }
-            }
-        ]
-    };
-    dynamodb.updateTable(tableUpdate, function (err, data) {
-        if(err){
-            console.log("Error in updating table", JSON.stringify(err, null, 2));
-        }else{
-            console.log("Succeed in Updating");
-            console.log(data);
+            })
         }
-    })
 
-    for (let i = 0; i < friends_facebook_ids.length; i++) {
-        var params = {
-            TableName:"Users",
-            IndexName:"facebook_id_index",
-            KeyConditionExpression: "facebook_id = :value",
-            ExpressionAttributeValues: {":value":{ S: friends_facebook_ids[i] }}
-        };
-        await docClient.query(params, (err, friend) => {
+        var user = {
+            TableName: "Users",
+            Item: {
+                "user_id" : {N: new_id},
+                "first_name": {S: req.body.first_name},
+                "last_name": {S: req.body.last_name},
+                "photo": {S: req.body.photo},
+                "friends": {SS: friends_pulp_ids},   // list of friends' pulp db id's
+                "places": {SS: req.body.places},   // list of visited places' pulp db id's
+
+                // Auth info (unsure whether they are needed, but storing just in case for now)
+                "access_token": {S: req.body.access_token},    // I don't think this will be needed bc no need to query facebook after initial setup, but keep for now
+                "facebook_id": {S: req.body.facebook_id}
+            }
+        }
+
+        dynamodb.putItem(user, (err, data)=> {
             if (err) {
-                console.log(`Error querying for new user's fb friend (${friends_facebook_ids[i]})`,JSON.stringify(err, null, 2));
+                res.status(500).send(`Error add new user --> ${err}`)
             } else {
-                console.log(friend);
-                if (friend) {
-                    friends_pulp_ids.push(friend.user_id);
-                } else {
-                    console.log(`Could not find a user with fb id ${friends_facebook_ids[i]}`)
-                }
+                // increment len of table with table_id = PLACES bc added place into it
+                increment_table_len(USERS)
+                    .then(() => {
+                        console.log(`New user (${new_id}) has been created.`);
+                    })
+                    .catch((err) => {
+                        res.status(500).send(`Increment table failed in create_place --> ${err}`);
+                    });
             }
         })
-    }
 
-    // Get user info from req.body
-    var user = {
-        TableName: "Users",
-        Item: {
-            "first_name": {S: req.body.first_name},
-            "last_name":  {S: req.body.last_name },
-            "photo":      {S: req.body.photo},
-            "friends":    { SS: friends_pulp_ids },   // list of friends' pulp db id's
-            "places":     { SS: req.body.places },   // list of visited places' pulp db id's
+        for(let i = 1; i < friends_pulp_ids.length; i++){
+            var params = {
+                TableName:"Users",
+                IndexName:"facebook_id_index",
+                KeyConditionExpression: "facebook_id = :value",
+                ExpressionAttributeValues: {
+                    ":value": {S: friends_pulp_ids[i]},
+                }
+            };
+            dynamodb.query(params, (err, friend) => {
+                if (err) {
+                    res.status(500).send(`Error in reaching the facebook friend --> ${err}`);
+                } else {
+                    if (friend.Items[0]!= 0) {
+                        var update = {
+                            TableName:"Users",
+                            UpdateExpression:"set friends = list_append(friends, :l)",
+                            ExpressionAttributeValues:{
+                                ":l": friend.Items[0].facebook_id.S,
+                            },
+                            ReturnValues : "UPDATE_NEW"
+                        };
+                        console.log("Updating the item...");
+                        dynamodb.update(update, function(err, data) {
+                            if (err) {
+                                console.error("Unable to update item. Error JSON:", JSON.stringify(err, null, 2));
+                            } else {
+                                console.log("Success");
+                            }
+                        });
 
-            // Auth info (unsure whether they are needed, but storing just in case for now)
-            "access_token":  { S: req.body.access_token },    // I don't think this will be needed bc no need to query facebook after initial setup, but keep for now
-            "facebook_id":   { S: req.body.facebook_id }
+                    } else {
+                        console.log(`Could not find a user with fb id ${friends_facebook_ids[i]}`);
+                    }
+                }
+            })
+
         }
-    }
+        res.send(`New user (${new_id}) has been created.`);
 
-    // Save new user
-    dynamodb.putItem(user, function(err ,data){
-        if(err) console.log(err, err.stack);
-        else console.log(data);
-    })
+    }).catch((err) => {
+        res.status(500).send(`Error getting Users table length from Tables_Data --> ${err}`);
+    });
+
+
+})
+
+
 
     // Add new user to each of new_user's friends already on the app
-
+/*
 
     for(let i = 0; i < friends_pulp_ids.length; i++){
         var params = {
@@ -401,7 +416,7 @@ router.post('/create_place', async (req, res) => {
     .catch((err) => {
         res.status(500).send(`Error getting Places table length from Tables_Data --> ${err}`);
     });
-})
+});
 /*
 // Take in the place_id and user_id and return the details of the place
 // and the weighted rating of the place
