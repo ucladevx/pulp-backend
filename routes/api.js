@@ -223,87 +223,49 @@ router.post('/edit_place', async (req, res) => {
   await place.save();
   res.send(`Place ${place._id} has been successfully edited.`);
 })
-
+*/
 
 router.post('/add_review', async (req, res) => {
 
-  // get length of Places table and add one to get new id number
-  var table_params = {
-      TableName: "Tables_Data",
-      ExpressionAttributeValues: {
-          ":v1": {
-              N: REVIEWS
-          }
-      },
-      KeyConditionExpression: "table_id = :v1",
-  };
-  dynamodb.query(table_params, function(err, data) {
-      if (err) {
-          res.status(500).send(err);
-      } else {
-          let length = data.Items[0].len.N;                       // returns type string from db
-          let new_id = (parseInt(length, 10) + 1).toString();     // converts to int, adds one, converts back to string to store
-          var today = new Date();
+    // get length of Reviews table
+    get_table_len(REVIEWS)
+    .then((length) => {
+        // converts to int, adds one, converts back to string to store as new place's id
+        let new_id = (parseInt(length, 10) + 1).toString();
 
-          var params = {
-              Item: {
-                  "review_id": {
-                      N: new_id
-                  },
-                  "dateCreated": {
-                      S: today
-                  },
-                  "postedBy": {
-                      N: req.body.user_id
-                  },
-                  "place": {
-                      N: req.body.place_id
-                  },
-                  "rating": {
-                      N: req.body.rating
-                  },
-                  "body": {
-                      S: req.body.body
-                  },
-                  "userPhoto": {
-                      S: req.body.user_photo
-                  }
-              },
-              ReturnConsumedCapacity: "TOTAL",
-              TableName: "Reviews"
-          };
-          dynamodb.putItem(params, function(err, place) {
-              if (err) {
-                  res.status(500).send(`Error creating new review --> ${err}`)
-              } else {
-                  // increment length of table with table_id = PLACES bc adding place into it                     !!!TURN INTO HELPER FUNCTION!!!
-                  var update_params = {
-                      TableName: "Tables_Data",
-                      Key: {
-                          table_id: {
-                              N: REVIEWS
-                          }
-                      },
-                      UpdateExpression: "set len = len + :one",
-                      ExpressionAttributeValues: {
-                          ":one": {
-                              N: "1"
-                          }
-                      }
-                  };
-                  dynamodb.updateItem(update_params, function(err, data) {
-                      if (err) {
-                          res.status(500).send(`Error updating Places table length in Tables_Data --> ${err}`);
-                      } else {
-                          res.send(`New review (${new_id}) has been created.`)
-                      }
-                  });
-              }
-          });
-      }
-  })
+        var params = {
+            TableName: "Reviews",
+            Item: {
+              "review_id":      { N: new_id },
+              "dateCreated":    { S: today },
+              "postedBy":       { N: req.body.user_id },
+              "place":          { N: req.body.place_id },
+              "rating":         { N: req.body.rating },
+              "body":           { S: req.body.body },
+              "userPhoto":      { S: req.body.user_photo }
+            },
+            ReturnConsumedCapacity: "TOTAL"
+        };
+        dynamodb.putItem(params, async (err, review) => {
+            if (err) {
+                res.status(500).send(`Error creating new review --> ${err}`)
+            } else {
+                // increment len of table with table_id = REVIEWS bc added place into it
+                increment_table_len(REVIEWS)
+                .then(() => {
+                    res.send(`New review (${new_id}) has been created.`)
+                })
+                .catch((err) => {
+                    res.status(500).send(`Increment table failed in add_review --> ${err}`);
+                });
+            }
+        });
+    })
+    .catch((err) => {
+        res.status(500).send(`Error getting Reviews table length from Tables_Data --> ${err}`);
+    });
 })
-*/
+
 //Create new place (only occur once when someone checked in for the first time)
 router.post('/create_place', async (req, res) => {
 
