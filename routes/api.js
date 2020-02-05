@@ -11,9 +11,10 @@ const router = express.Router();
 
 // for testing. eventually change to use config file?
 var AWS = require("aws-sdk");
-AWS.config.update({region:'us-west-2'});
+AWS.config.update({region:'us-west-2', endpoint: "http://localhost:8000"});
 //AWS.config.update({region:'us-east-1'});
-var dynamodb = new AWS.DynamoDB({endpoint: "http://localhost:8000"});
+var dynamodb = new AWS.DynamoDB();
+var docClient = new AWS.DynamoDB.DocumentClient()
 
 /*
 const mongoose = require('mongoose');
@@ -259,28 +260,10 @@ router.get('/get_map', async (req, res) => {
 
 
 
-
+*/
 /////////////////////////////////////////////////
 //////////////   PLACE ENDPOINTS   //////////////
 /////////////////////////////////////////////////
-
-// Edit existing place
-router.post('/edit_place', async (req, res) => {
-  console.log("in edit place")
-  var place = await Place.findById(req.body.place_id);
-  console.log(place);
-  console.log(Object.keys(req.body));
-  const keys = Object.keys(req.body);
-  for (const key of keys){
-    console.log(key);
-    if(!(place[key] === undefined)){
-      place[key] = req.body[key];
-    }
-  }
-  await place.save();
-  res.send(`Place ${place._id} has been successfully edited.`);
-})
-*/
 
 router.post('/add_review', async (req, res) => {
 
@@ -337,10 +320,10 @@ router.post('/create_place', async (req, res) => {
             TableName: "Places",
             Item: {
                 "place_id":         { N: new_id },
-                "name":             { S: req.body.name },
+                "p_name":             { S: req.body.name },
                 "image":            { S: req.body.image },
                 "city":             { S: req.body.city },
-                "state":            { S: req.body.state },
+                "p_state":            { S: req.body.state },
                 "address1":         { S: req.body.address1 },
                 "address2":         { S: req.body.address2 },
                 "zip_code":         { S: req.body.zip_code },
@@ -372,6 +355,42 @@ router.post('/create_place', async (req, res) => {
         res.status(500).send(`Error getting Places table length from Tables_Data --> ${err}`);
     });
 })
+
+router.post('/edit_place', async (req, res) => {
+    console.log("in edit place");
+    console.log(req.body);
+    console.log(req.body.tags);
+    var params = {
+        TableName: "Places",
+        Key: { "place_id": { N: req.body.place_id }},
+        UpdateExpression: "set p_name = :p_name, image = :image, city = :city, p_state = :p_state, address1 = :address1, address2 = :address2, zip_code = :zip_code, latitude = :latitude, longitude = :longitude, tags = :tags",
+        ExpressionAttributeValues:{
+            ":p_name":{ S: req.body.name },
+            ":image":{ S: req.body.image },
+            ":city":{ S: req.body.city },
+            ":p_state":{ S: req.body.state },
+            ":address1":{ S: req.body.address1 },
+            ":address2":{ S: req.body.address2 },
+            ":zip_code":{ S: req.body.zip_code },
+            ":latitude":{ N: req.body.latitude },
+            ":longitude":{ N: req.body.longitude },
+            ":tags":{ SS: req.body.tags }
+        },
+        ReturnValues:"UPDATED_NEW"
+    };
+    console.log(params);
+    console.log("Updating the item");
+    dynamodb.updateItem(params, function(err, data) {
+        if (err) {
+            console.error("Unable to edit place; Error JSON: ", JSON.stringify(err, null, 2));
+            res.status(500).send(`Error editing place`);
+        } else {
+            console.log("UpdateItem succeeded:", JSON.stringify(data, null, 2));
+            res.send(`Place ${req.body.place_id} has been successfully edited.`);
+        }
+    });
+})
+
 /*
 // Take in the place_id and user_id and return the details of the place
 // and the weighted rating of the place
