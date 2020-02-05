@@ -181,27 +181,35 @@ router.get('/delete_user', (req, res) => {
         }
     });
 })
-/*
+
 // Edit existing user
 router.post('/edit_user', async (req, res) => {
-    let user;
-    try {
-        user = await User.findById(req.body.user_id);
-    } catch (err) {
-        res.status(500).send("Could not find user");
-    }
-    if (user) {
-        const keys = Object.keys(req.body);
-        for (const key of keys) {
-            if(!(user[key] === undefined)) {
-                user[key] = req.body[key];
-            }
-        }
-        await user.save();
-        res.send(`User ${user._id} has been successfully edited.`);
-    }
-})
 
+    // check if user exits first?
+
+    let update_params = {
+        TableName : "Users",
+        Key: { "user_id": { N: req.body.user_id }},
+        UpdateExpression : "set first_name = :first_name, last_name = :last_name, photo = :photo, places = :places, access_token = :access_token, facebook_id = :facebook_id",
+        ExpressionAttributeValues : {
+            ":first_name":      { S:  req.body.first_name },
+            ":last_name":       { S:  req.body.last_name },
+            ":photo":           { S:  req.body.photo },
+            ":places":          { SS: req.body.places },
+            ":access_token":    { S:  req.body.access_token },
+            ":facebook_id":     { S:  req.body.facebook_id }
+        },
+        ReturnValues: "ALL_NEW"
+    }
+    dynamodb.updateItem(update_params, (err, user) => {
+        if (err) {
+            res.status(500).send(`Could not update user (${req.body.user_id}) --> ${err}`)
+        } else {
+            res.send(`User ${req.body.user_id} has been successfully edited.`);
+        }
+    });
+})
+/*
 // Given user, return list of all unique places (in json object format) that the user's friends have been to
 router.get('/get_map', async (req, res) => {
     let user;
