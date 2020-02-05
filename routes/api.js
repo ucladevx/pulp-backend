@@ -252,28 +252,10 @@ router.get('/get_map', async (req, res) => {
 
 
 
-
+*/
 /////////////////////////////////////////////////
 //////////////   PLACE ENDPOINTS   //////////////
 /////////////////////////////////////////////////
-
-// Edit existing place
-router.post('/edit_place', async (req, res) => {
-  console.log("in edit place")
-  var place = await Place.findById(req.body.place_id);
-  console.log(place);
-  console.log(Object.keys(req.body));
-  const keys = Object.keys(req.body);
-  for (const key of keys){
-    console.log(key);
-    if(!(place[key] === undefined)){
-      place[key] = req.body[key];
-    }
-  }
-  await place.save();
-  res.send(`Place ${place._id} has been successfully edited.`);
-})
-*/
 
 router.post('/add_review', async (req, res) => {
 
