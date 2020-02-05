@@ -39,8 +39,8 @@ router.get('/', (req, res) => {
 async function get_table_len(table_id_p) {
     var table_params = {
         TableName:                  "Tables_Data",
-        ExpressionAttributeValues:  { ":v1": { N: table_id_p } },
         KeyConditionExpression:     "table_id = :v1",
+        ExpressionAttributeValues:  { ":v1": { N: table_id_p } }
     };
     return new Promise((resolve, reject) => {
         dynamodb.query(table_params, async (err, data) => {
@@ -58,6 +58,24 @@ async function increment_table_len(table_id_p) {
         TableName:                  "Tables_Data",
         Key:                        { table_id: { N: table_id_p } },
         UpdateExpression:           "set len = len + :one",
+        ExpressionAttributeValues:  { ":one": { N: "1" } }
+    };
+    return new Promise((resolve, reject) => {
+        dynamodb.updateItem(update_params, function(err, data) {
+            if (err)    { return reject(err); }
+            else        { resolve(); }
+        });
+    })
+}
+
+// decrement len of table with table_id = table_id_p (from above constants).
+// returns a Promise. Passes nothing upon success, err on failure.
+// should never decrement TABLES_DATA.
+async function decrement_table_len(table_id_p) {
+    var update_params = {
+        TableName:                  "Tables_Data",
+        Key:                        { table_id: { N: table_id_p } },
+        UpdateExpression:           "set len = len - :one",
         ExpressionAttributeValues:  { ":one": { N: "1" } }
     };
     return new Promise((resolve, reject) => {
@@ -113,26 +131,57 @@ router.post('/new_user', async (req, res) => {
     // Add new user to each of new_user's friends already on the app
     User.updateFriends(newUser);
 })
-
+*/
 // Find user by ID
 router.get('/find_user', (req, res) => {
-    User.findById(req.query.user_id, (err, user) => {
-        if (err) res.status(500).send("Error finding user");
-        res.json(user);
-    })
+    var user_params = {
+        TableName:                  "Users",
+        KeyConditionExpression:     "user_id = :v1",
+        ExpressionAttributeValues:  { ":v1": { N: req.query.user_id } }
+    };
+    dynamodb.query(user_params, async (err, user) => {
+        if (err) {
+            res.status(500).send(`Error finding user --> ${err}`);
+        } else {
+            if (user.Count == 0) {
+                res.status(500).send(`No user with user_id = ${req.query.user_id}`);
+            } else {
+                res.json(user.Items[0]);
+            }
+        }
+    });
 })
 
 // Delete user by ID
 router.get('/delete_user', (req, res) => {
-    User.remove({_id: req.query.user_id}, (err) => {
-        if (err) res.status(500).send("Error deleting user: " + err);
+    var params = {
+        Key: { "user_id": { N: req.query.user_id } },
+        ReturnValues: "ALL_OLD",
+        TableName: "Users"
+    };
+    dynamodb.deleteItem(params, function(err, user) {
+        if (err) {
+            res.status(500).send(`Error deleting user: " + ${err}`);
+        } else {
+            // if dynamo found the user and deleted it
+            if ('Attributes' in user) {
+                // NEED to remove this user from every other user that has it in its friends list
 
-        // NEED to remove this user from every other user that has it in its friends list
-
-        res.send('User has been destroyed.');
-    })
+                // decrement table len
+                decrement_table_len(USERS)
+                .then(() => {
+                    res.send(`User (${req.query.user_id}) has been destroyed.`);
+                })
+                .catch((err2) => {
+                    res.status(500).send(`Decrement table failed in delete_user --> ${err2}`);
+                });
+            } else {
+                res.status(500).send(`User (${req.query.user_id}) could not be deleted because it did not exist.`);
+            }
+        }
+    });
 })
-
+/*
 // Edit existing user
 router.post('/edit_user', async (req, res) => {
     let user;
