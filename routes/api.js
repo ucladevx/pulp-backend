@@ -272,49 +272,59 @@ router.post('/edit_place', async (req, res) => {
   await place.save();
   res.send(`Place ${place._id} has been successfully edited.`);
 })
-
+*/
 
 router.post('/add_review', async (req, res) => {
-  console.log("in add review");
-  var today = new Date();
 
-  var place = await Place.findById(req.body.place_id);
-  console.log(place);
-  var user = await User.findById(req.body.user_id);
-  console.log(user);
+    // get length of Reviews table
+    get_table_len(REVIEWS)
+    .then((length) => {
+        // converts to int, adds one, converts back to string to store as new place's id
+        let new_id = (parseInt(length, 10) + 1).toString();
 
-  let newReview = new Review({
-    dateCreated: today,
-    postedBy: req.body.user_id,
-    place: req.body.place_id,
-    rating: req.body.rating,
-    body: req.body.body,
-    user_photo: req.body.user_photo
-  })
-  console.log(newReview);
-  newReview.save(async (err, review) => {
-      if (err) res.status(500).send("Error saving review");
-      //console.log("saved new user");
-      place.reviews.push(review._id);
-      var newRating = ((place.averageRating * place.numRatings) + req.body.rating) / (place.numRatings + 1);
-      place.averageRating = newRating;
-      place.numRatings += 1;
-      await place.save();
-      res.send(`New review ${review._id} has been saved.`);
-      //res.send('new user has been saved.');
-  })
-
-  user.places.push(req.body.place_id);
-  await user.save();
+        var today = new Date().toString();
+        var params = {
+            TableName: "Reviews",
+            Item: {
+                "review_id":        { N: new_id },
+                "date_created":     { S: today },
+                "postedBy":         { N: req.body.user_id },
+                "place":            { N: req.body.place_id },
+                "rating":           { N: req.body.rating },
+                "body":             { S: req.body.body },
+                "user_photo":       { S: req.body.user_photo },
+            },
+            ReturnConsumedCapacity: "TOTAL"
+        };
+        dynamodb.putItem(params, async (err, review) => {
+            if (err) {
+                res.status(500).send(`Error creating new review --> ${err}`)
+            } else {
+                // increment len of table with table_id = REVIEWS bc added place into it
+                increment_table_len(REVIEWS)
+                .then(() => {
+                    res.send(`New review (${new_id}) has been created.`)
+                })
+                .catch((err) => {
+                    res.status(500).send(`Increment table failed in add_review --> ${err}`);
+                });
+            }
+        });
+    })
+    .catch((err) => {
+        res.status(500).send(`Error getting Reviews table length from Tables_Data --> ${err}`);
+    });
 })
-*/
+
 //Create new place (only occur once when someone checked in for the first time)
 router.post('/create_place', async (req, res) => {
+
     // get length of Places table
     get_table_len(PLACES)
     .then((length) => {
         // converts to int, adds one, converts back to string to store as new place's id
         let new_id = (parseInt(length, 10) + 1).toString();
+
         var params = {
             TableName: "Places",
             Item: {
