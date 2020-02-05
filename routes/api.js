@@ -14,11 +14,10 @@ const User = require('../createTables/UsersCreateTable');
 const Place = require('../createTables/PlacesCreateTable');
 const Review = require('../createTables/ReviewsCreateTable');
 var AWS = require("aws-sdk");
-AWS.config.update({
-    region: "us-west-2",
-    endpoint: "http://localhost:8000"
-});
-var dynamodb = new AWS.DynamoDB({endpoint: "http://localhost:8000"});
+AWS.config.update({region:'us-west-2', endpoint: "http://localhost:8000"});
+//AWS.config.update({region:'us-east-1'});
+var dynamodb = new AWS.DynamoDB();
+var docClient = new AWS.DynamoDB.DocumentClient();
 
 // Table ID Definitions
 const TABLES_DATA   = "0";
@@ -37,8 +36,8 @@ router.get('/', (req, res) => {
 async function get_table_len(table_id_p) {
     var table_params = {
         TableName:                  "Tables_Data",
-        ExpressionAttributeValues:  { ":v1": { N: table_id_p } },
         KeyConditionExpression:     "table_id = :v1",
+        ExpressionAttributeValues:  { ":v1": { N: table_id_p } }
     };
     return new Promise((resolve, reject) => {
         dynamodb.query(table_params, async (err, data) => {
@@ -56,6 +55,24 @@ async function increment_table_len(table_id_p) {
         TableName:                  "Tables_Data",
         Key:                        { table_id: { N: table_id_p } },
         UpdateExpression:           "set len = len + :one",
+        ExpressionAttributeValues:  { ":one": { N: "1" } }
+    };
+    return new Promise((resolve, reject) => {
+        dynamodb.updateItem(update_params, function(err, data) {
+            if (err)    { return reject(err); }
+            else        { resolve(); }
+        });
+    })
+}
+
+// decrement len of table with table_id = table_id_p (from above constants).
+// returns a Promise. Passes nothing upon success, err on failure.
+// should never decrement TABLES_DATA.
+async function decrement_table_len(table_id_p) {
+    var update_params = {
+        TableName:                  "Tables_Data",
+        Key:                        { table_id: { N: table_id_p } },
+        UpdateExpression:           "set len = len - :one",
         ExpressionAttributeValues:  { ":one": { N: "1" } }
     };
     return new Promise((resolve, reject) => {
@@ -226,45 +243,86 @@ router.post('/new_user', async (req, res) => {
     }
 })
 
-//Find user by IDnd
+*/
+// Find user by ID
+
 router.get('/find_user', (req, res) => {
-    User.findById(req.query.user_id, (err, user) => {
-        if (err) res.status(500).send("Error finding user");
-        res.json(user);
-    })
+    var user_params = {
+        TableName:                  "Users",
+        KeyConditionExpression:     "user_id = :v1",
+        ExpressionAttributeValues:  { ":v1": { N: req.query.user_id } }
+    };
+    dynamodb.query(user_params, async (err, user) => {
+        if (err) {
+            res.status(500).send(`Error finding user --> ${err}`);
+        } else {
+            if (user.Count == 0) {
+                res.status(500).send(`No user with user_id = ${req.query.user_id}`);
+            } else {
+                res.json(user.Items[0]);
+            }
+        }
+    });
 })
 
 // Delete user by ID
 router.get('/delete_user', (req, res) => {
-    User.remove({_id: req.query.user_id}, (err) => {
-        if (err) res.status(500).send("Error deleting user: " + err);
+    var params = {
+        Key: { "user_id": { N: req.query.user_id } },
+        ReturnValues: "ALL_OLD",
+        TableName: "Users"
+    };
+    dynamodb.deleteItem(params, function(err, user) {
+        if (err) {
+            res.status(500).send(`Error deleting user: " + ${err}`);
+        } else {
+            // if dynamo found the user and deleted it
+            if ('Attributes' in user) {
+                // NEED to remove this user from every other user that has it in its friends list
 
-        // NEED to remove this user from every other user that has it in its friends list
-
-        res.send('User has been destroyed.');
-    })
+                // decrement table len
+                decrement_table_len(USERS)
+                .then(() => {
+                    res.send(`User (${req.query.user_id}) has been destroyed.`);
+                })
+                .catch((err2) => {
+                    res.status(500).send(`Decrement table failed in delete_user --> ${err2}`);
+                });
+            } else {
+                res.status(500).send(`User (${req.query.user_id}) could not be deleted because it did not exist.`);
+            }
+        }
+    });
 })
 
 // Edit existing user
 router.post('/edit_user', async (req, res) => {
-    let user;
-    try {
-        user = await User.findById(req.body.user_id);
-    } catch (err) {
-        res.status(500).send("Could not find user");
-    }
-    if (user) {
-        const keys = Object.keys(req.body);
-        for (const key of keys) {
-            if(!(user[key] === undefined)) {
-                user[key] = req.body[key];
-            }
-        }
-        await user.save();
-        res.send(`User ${user._id} has been successfully edited.`);
-    }
-})
 
+    // check if user exits first?
+
+    let update_params = {
+        TableName : "Users",
+        Key: { "user_id": { N: req.body.user_id }},
+        UpdateExpression : "set first_name = :first_name, last_name = :last_name, photo = :photo, places = :places, access_token = :access_token, facebook_id = :facebook_id",
+        ExpressionAttributeValues : {
+            ":first_name":      { S:  req.body.first_name },
+            ":last_name":       { S:  req.body.last_name },
+            ":photo":           { S:  req.body.photo },
+            ":places":          { SS: req.body.places },
+            ":access_token":    { S:  req.body.access_token },
+            ":facebook_id":     { S:  req.body.facebook_id }
+        },
+        ReturnValues: "ALL_NEW"
+    }
+    dynamodb.updateItem(update_params, (err, user) => {
+        if (err) {
+            res.status(500).send(`Could not update user (${req.body.user_id}) --> ${err}`)
+        } else {
+            res.send(`User ${req.body.user_id} has been successfully edited.`);
+        }
+    });
+})
+/*
 // Given user, return list of all unique places (in json object format) that the user's friends have been to
 router.get('/get_map', async (req, res) => {
     let user;
@@ -314,78 +372,70 @@ router.get('/get_map', async (req, res) => {
 
 
 
-
+*/
 /////////////////////////////////////////////////
 //////////////   PLACE ENDPOINTS   //////////////
 /////////////////////////////////////////////////
 
-// Edit existing place
-router.post('/edit_place', async (req, res) => {
-  console.log("in edit place")
-  var place = await Place.findById(req.body.place_id);
-  console.log(place);
-  console.log(Object.keys(req.body));
-  const keys = Object.keys(req.body);
-  for (const key of keys){
-    console.log(key);
-    if(!(place[key] === undefined)){
-      place[key] = req.body[key];
-    }
-  }
-  await place.save();
-  res.send(`Place ${place._id} has been successfully edited.`);
-})
-
-
 router.post('/add_review', async (req, res) => {
-  console.log("in add review");
-  var today = new Date();
 
-  var place = await Place.findById(req.body.place_id);
-  console.log(place);
-  var user = await User.findById(req.body.user_id);
-  console.log(user);
+    // get length of Reviews table
+    get_table_len(REVIEWS)
+    .then((length) => {
+        // converts to int, adds one, converts back to string to store as new place's id
+        let new_id = (parseInt(length, 10) + 1).toString();
 
-  let newReview = new Review({
-    dateCreated: today,
-    postedBy: req.body.user_id,
-    place: req.body.place_id,
-    rating: req.body.rating,
-    body: req.body.body,
-    user_photo: req.body.user_photo
-  })
-  console.log(newReview);
-  newReview.save(async (err, review) => {
-      if (err) res.status(500).send("Error saving review");
-      //console.log("saved new user");
-      place.reviews.push(review._id);
-      var newRating = ((place.averageRating * place.numRatings) + req.body.rating) / (place.numRatings + 1);
-      place.averageRating = newRating;
-      place.numRatings += 1;
-      await place.save();
-      res.send(`New review ${review._id} has been saved.`);
-      //res.send('new user has been saved.');
-  })
-
-  user.places.push(req.body.place_id);
-  await user.save();
+        var today = new Date().toString();
+        var params = {
+            TableName: "Reviews",
+            Item: {
+                "review_id":        { N: new_id },
+                "date_created":     { S: today },
+                "postedBy":         { N: req.body.user_id },
+                "place":            { N: req.body.place_id },
+                "rating":           { N: req.body.rating },
+                "body":             { S: req.body.body },
+                "user_photo":       { S: req.body.user_photo },
+            },
+            ReturnConsumedCapacity: "TOTAL"
+        };
+        dynamodb.putItem(params, async (err, review) => {
+            if (err) {
+                res.status(500).send(`Error creating new review --> ${err}`)
+            } else {
+                // increment len of table with table_id = REVIEWS bc added place into it
+                increment_table_len(REVIEWS)
+                .then(() => {
+                    res.send(`New review (${new_id}) has been created.`)
+                })
+                .catch((err) => {
+                    res.status(500).send(`Increment table failed in add_review --> ${err}`);
+                });
+            }
+        });
+    })
+    .catch((err) => {
+        res.status(500).send(`Error getting Reviews table length from Tables_Data --> ${err}`);
+    });
 })
-*/
+
 //Create new place (only occur once when someone checked in for the first time)
 router.post('/create_place', async (req, res) => {
+
     // get length of Places table
     get_table_len(PLACES)
     .then((length) => {
         // converts to int, adds one, converts back to string to store as new place's id
         let new_id = (parseInt(length, 10) + 1).toString();
+
         var params = {
             TableName: "Places",
             Item: {
                 "place_id":         { N: new_id },
-                "name":             { S: req.body.name },
+                "p_name":             { S: req.body.name },
                 "image":            { S: req.body.image },
                 "city":             { S: req.body.city },
-                "state":            { S: req.body.state },
+                "p_state":            { S: req.body.state },
                 "address1":         { S: req.body.address1 },
                 "address2":         { S: req.body.address2 },
                 "zip_code":         { S: req.body.zip_code },
@@ -416,7 +466,43 @@ router.post('/create_place', async (req, res) => {
     .catch((err) => {
         res.status(500).send(`Error getting Places table length from Tables_Data --> ${err}`);
     });
-});
+})
+
+router.post('/edit_place', async (req, res) => {
+    console.log("in edit place");
+    console.log(req.body);
+    console.log(req.body.tags);
+    var params = {
+        TableName: "Places",
+        Key: { "place_id": { N: req.body.place_id }},
+        UpdateExpression: "set p_name = :p_name, image = :image, city = :city, p_state = :p_state, address1 = :address1, address2 = :address2, zip_code = :zip_code, latitude = :latitude, longitude = :longitude, tags = :tags",
+        ExpressionAttributeValues:{
+            ":p_name":{ S: req.body.name },
+            ":image":{ S: req.body.image },
+            ":city":{ S: req.body.city },
+            ":p_state":{ S: req.body.state },
+            ":address1":{ S: req.body.address1 },
+            ":address2":{ S: req.body.address2 },
+            ":zip_code":{ S: req.body.zip_code },
+            ":latitude":{ N: req.body.latitude },
+            ":longitude":{ N: req.body.longitude },
+            ":tags":{ SS: req.body.tags }
+        },
+        ReturnValues:"UPDATED_NEW"
+    };
+    console.log(params);
+    console.log("Updating the item");
+    dynamodb.updateItem(params, function(err, data) {
+        if (err) {
+            console.error("Unable to edit place; Error JSON: ", JSON.stringify(err, null, 2));
+            res.status(500).send(`Error editing place`);
+        } else {
+            console.log("UpdateItem succeeded:", JSON.stringify(data, null, 2));
+            res.send(`Place ${req.body.place_id} has been successfully edited.`);
+        }
+    });
+})
+
 /*
 // Take in the place_id and user_id and return the details of the place
 // and the weighted rating of the place
