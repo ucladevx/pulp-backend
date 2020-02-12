@@ -254,8 +254,8 @@ router.get('/delete_user', (req, res) => {
         TableName: "Users"
     };
     dynamodb.deleteItem(params, function(err, user) {
-        if (err) {
-            res.status(500).send(`Error deleting user: " + ${err}`);
+        if (err1) {
+            res.status(500).send(`Error deleting user: " + ${err1}`);
         } else {
             // if dynamo found the user and deleted it
             if ('Attributes' in user) {
@@ -276,31 +276,41 @@ router.get('/delete_user', (req, res) => {
     });
 })
 
-// Edit existing user
+// Edit an existing user
 router.post('/edit_user', async (req, res) => {
-
-    // check if user exits first?
-
-    let update_params = {
-        TableName : "Users",
-        Key: { "user_id": { N: req.body.user_id }},
-        UpdateExpression : "set first_name = :first_name, last_name = :last_name, photo = :photo, places = :places, access_token = :access_token, facebook_id = :facebook_id",
-        ExpressionAttributeValues : {
-            ":first_name":      { S:  req.body.first_name },
-            ":last_name":       { S:  req.body.last_name },
-            ":photo":           { S:  req.body.photo },
-            ":places":          { NS: req.body.places },
-            ":access_token":    { S:  req.body.access_token },
-            ":facebook_id":     { S:  req.body.facebook_id }
-            //friends?
-        },
-        ReturnValues: "ALL_NEW"
-    }
-    dynamodb.updateItem(update_params, (err, user) => {
+    var user_params = {
+        TableName:                  "Users",
+        KeyConditionExpression:     "user_id = :v1",
+        ExpressionAttributeValues:  { ":v1": { N: req.body.user_id } }
+    };
+    dynamodb.query(user_params, (err, user) => {
         if (err) {
-            res.status(500).send(`Could not update user (${req.body.user_id}) --> ${err}`)
+            res.status(500).send(`Error finding user --> ${err}`);
         } else {
-            res.send(`User ${req.body.user_id} has been successfully edited.`);
+            if (user.Count == 0) {
+                res.status(500).send(`No user with user_id = ${req.body.user_id}`);
+            } else {
+                // if user exists, edit it
+                let update_params = {
+                    TableName : "Users",
+                    Key: { "user_id": { N: req.body.user_id }},
+                    UpdateExpression : "set first_name = :first_name, last_name = :last_name, photo = :photo, places = :places, access_token = :access_token, facebook_id = :facebook_id",
+                    ExpressionAttributeValues : {
+                        ":first_name":      { S:  req.body.first_name },
+                        ":last_name":       { S:  req.body.last_name },
+                        ":photo":           { S:  req.body.photo },
+                        ":places":          { NS: req.body.places },            // needed?
+                        ":access_token":    { S:  req.body.access_token },      // needed?
+                        ":facebook_id":     { S:  req.body.facebook_id }        // needed?
+                        //friends?
+                    },
+                    ReturnValues: "ALL_NEW"
+                }
+                dynamodb.updateItem(update_params, (err, user) => {
+                    if (err)    { res.status(500).send(`Could not update user (${req.body.user_id}) --> ${err}`) }
+                    else        { res.send(`User (${req.body.user_id}) has been successfully edited.`); }
+                });
+            }
         }
     });
 })
