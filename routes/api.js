@@ -536,8 +536,9 @@ async function get_place(place_id, fbfriends, response){
 
                 var friend_images = [];
                 var reviews = [];
-
-                for (var i=0; i < review_ids.length; i++) {
+                console.log(review_ids);
+                console.log(review_ids.length)
+                for (var i=1; i < review_ids.length; i++) {
                     var review_params = {
                         TableName:                  "Reviews",
                         KeyConditionExpression:     "review_id = :v3",
@@ -580,12 +581,14 @@ async function get_place(place_id, fbfriends, response){
                                 if(err){
                                     console.log("Error in update rating");
                                 }else{
-                                    response.status(200).json({
+                                    response = {
                                         "place": place.Items[0],
                                         "averageRating": weightedRating/weights,
                                         "friend_images": friend_images,
                                         "reviews": reviews // []
-                                    });
+                                    }
+                                    response.status(200).json(response);
+                                    return response;
                                 }
                             })
 
@@ -682,7 +685,7 @@ router.get('/search_place_if_exists', async (req, res) => {
             res.status(500).send(`No place found with name = ${query.name}`);
         } else {
             console.log("query succeeded");
-            if (data.Items.length < 1){
+            if (place_data.Items.length < 1){
                 res.status(500).send(`No place found with name = ${query.name}`);
             }
             var user_params = {
@@ -690,13 +693,14 @@ router.get('/search_place_if_exists', async (req, res) => {
                 Key:{ "user_id": { N: query.user_id } }
             }
             dynamodb.getItem(user_params, function(user_err, user_data) {
-                if (err){
-
+                if (user_err){
+                    console.error("Unable to query. Error:", JSON.stringify(place_err, null, 2));
                 }else{
                     console.log("GetItem succeeded:", JSON.stringify(user_data, null, 2));
-                    place_data.Items.forEach(function(place) {
-                        console.log(place);
-                        var customized_place = await get_place(place.place_id, user_data.user_id);
+                    place_data.Items.forEach(async function(place) {
+                        console.log(place.place_id.N);
+                        console.log(user_data.Item.user_id.N);
+                        var customized_place = await get_place(place.place_id.N, user_data.Item.user_id.N, res);
                         console.log(customized_place);
                         res.json(customized_place);
                     });
