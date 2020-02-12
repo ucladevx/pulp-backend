@@ -323,57 +323,68 @@ router.post('/edit_user', async (req, res) => {
         }
     });
 })
-/*
+
 // Given user, return list of all unique places (in json object format) that the user's friends have been to
 router.get('/get_map', async (req, res) => {
-    let user;
-    try {
-        user = await User.findById(req.query.user_id);
-    } catch(err) {
-        res.status(500).send("Couldn't find user.")
+    let user_param = {
+        TableName: "Users",
+        KeyConditionExpression: "user_id = :val",
+        ExpressionAttributeValues: {":val": {N: req.query.user_id}}
     }
-
-    if (user) {
-        // Get a list of unique place id's that the user's friends have been to
-        let place_ids = [];
-        let friends = user.friends;
-        for (let i = 0; i < friends.length; i++) {
-            let friend_id = friends[i];
-            try {
-                friend = await User.findById(friend_id);
-            } catch(err) {
-                console.log('Could not find friend in DB');
-                continue;
-            }
-            if (friend) {
-                let friend_places = friend.places;
-                for (let j = 0; j < friend_places.length; j++) {
-                    let place_id = friend_places[j];
-                    if (place_ids.includes(place_id.toString())) {
-                        continue;
+    dynamodb.query(user_param, (err, user)=>{
+        if (err) {
+            res.status(500).send(`Error finding user --> ${err}`);
+        } else {
+            if(user.Items.length!=0){
+                let place_ids = [];
+                let friends = user.Items[0].friends.NS;
+                for (let i = 0; i < friends.length; i++) {
+                    let friend_param = {
+                        TableName: "Users",
+                        KeyConditionExpression: "user_id = :val",
+                        ExpressionAttributeValues: {":val":{ N: friends[i] }}
                     }
-                    place_ids.push(place_id.toString());
+                    dynamodb.query(friend_param, (err, friend)=>{
+                        if(err){
+                            console.log('Could not find friend in DB');
+                        }else{
+                            if(friend.Items.length!=0){
+                                let friend_places = friend.Items[0].places.SS;
+                                for (let j = 0; j < friend_places.length; j++) {
+                                    let place_id = friend_places[j];
+                                    if (place_ids.includes(place_id.toString())) {
+                                        continue;
+                                    }
+                                    place_ids.push(place_id.toString());
+                                }
+                                let list = [];
+                                for (let k = 0; k < place_ids.length; k++) {
+                                    let data = get_place(place_ids[k], friends);
+                                    if(data)
+                                        list.push(data);
+                                }
+                            }
+                        }
+                    })
                 }
+
+                // use get_place to get data of each place with custom rating for the user
+
+
+                // Sort the list by average rating first and distance to break the tie
+                list.sort((a, b) => (a.averageRating > b.averageRating) ? 1 :
+                    (a.averageRating === b.averageRating) ? ((a.distance > b.distance) ? 1 : -1) : -1 )
+                res.send(list);
             }
         }
+    })
 
-        // use get_place to get data of each place with custom rating for the user
-        let list = []
-        for (let k = 0; k < place_ids.length; k++) {
-            let data = await get_place(place_ids[k], friends);
-            if(data)
-                list.push(data);
-        }
-        // Sort the list by average rating first and distance to break the tie
-        list.sort((a, b) => (a.averageRating > b.averageRating) ? 1 :
-            (a.averageRating === b.averageRating) ? ((a.distance > b.distance) ? 1 : -1) : -1 )
-        res.send(list);
-    }
+
 })
 
 
 
-*/
+
 /////////////////////////////////////////////////
 //////////////   PLACE ENDPOINTS   //////////////
 /////////////////////////////////////////////////
