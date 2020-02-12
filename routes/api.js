@@ -254,8 +254,8 @@ router.get('/delete_user', (req, res) => {
         TableName: "Users"
     };
     dynamodb.deleteItem(params, function(err, user) {
-        if (err) {
-            res.status(500).send(`Error deleting user: " + ${err}`);
+        if (err1) {
+            res.status(500).send(`Error deleting user: " + ${err1}`);
         } else {
             // if dynamo found the user and deleted it
             if ('Attributes' in user) {
@@ -276,31 +276,41 @@ router.get('/delete_user', (req, res) => {
     });
 })
 
-// Edit existing user
+// Edit an existing user
 router.post('/edit_user', async (req, res) => {
-
-    // check if user exits first?
-
-    let update_params = {
-        TableName : "Users",
-        Key: { "user_id": { N: req.body.user_id }},
-        UpdateExpression : "set first_name = :first_name, last_name = :last_name, photo = :photo, places = :places, access_token = :access_token, facebook_id = :facebook_id",
-        ExpressionAttributeValues : {
-            ":first_name":      { S:  req.body.first_name },
-            ":last_name":       { S:  req.body.last_name },
-            ":photo":           { S:  req.body.photo },
-            ":places":          { NS: req.body.places },
-            ":access_token":    { S:  req.body.access_token },
-            ":facebook_id":     { S:  req.body.facebook_id }
-            //friends?
-        },
-        ReturnValues: "ALL_NEW"
-    }
-    dynamodb.updateItem(update_params, (err, user) => {
+    var user_params = {
+        TableName:                  "Users",
+        KeyConditionExpression:     "user_id = :v1",
+        ExpressionAttributeValues:  { ":v1": { N: req.body.user_id } }
+    };
+    dynamodb.query(user_params, (err, user) => {
         if (err) {
-            res.status(500).send(`Could not update user (${req.body.user_id}) --> ${err}`)
+            res.status(500).send(`Error finding user --> ${err}`);
         } else {
-            res.send(`User ${req.body.user_id} has been successfully edited.`);
+            if (user.Count == 0) {
+                res.status(500).send(`No user with user_id = ${req.body.user_id}`);
+            } else {
+                // if user exists, edit it
+                let update_params = {
+                    TableName : "Users",
+                    Key: { "user_id": { N: req.body.user_id }},
+                    UpdateExpression : "set first_name = :first_name, last_name = :last_name, photo = :photo, places = :places, access_token = :access_token, facebook_id = :facebook_id",
+                    ExpressionAttributeValues : {
+                        ":first_name":      { S:  req.body.first_name },
+                        ":last_name":       { S:  req.body.last_name },
+                        ":photo":           { S:  req.body.photo },
+                        ":places":          { NS: req.body.places },            // needed?
+                        ":access_token":    { S:  req.body.access_token },      // needed?
+                        ":facebook_id":     { S:  req.body.facebook_id }        // needed?
+                        //friends?
+                    },
+                    ReturnValues: "ALL_NEW"
+                }
+                dynamodb.updateItem(update_params, (err, user) => {
+                    if (err)    { res.status(500).send(`Could not update user (${req.body.user_id}) --> ${err}`) }
+                    else        { res.send(`User (${req.body.user_id}) has been successfully edited.`); }
+                });
+            }
         }
     });
 })
@@ -537,8 +547,9 @@ async function get_place(place_id, fbfriends, response){
 
                 var friend_images = [];
                 var reviews = [];
-
-                for (var i=0; i < review_ids.length; i++) {
+                console.log(review_ids);
+                console.log(review_ids.length)
+                for (var i=1; i < review_ids.length; i++) {
                     var review_params = {
                         TableName:                  "Reviews",
                         KeyConditionExpression:     "review_id = :v3",
@@ -581,12 +592,14 @@ async function get_place(place_id, fbfriends, response){
                                 if(err){
                                     console.log("Error in update rating");
                                 }else{
-                                    response.status(200).json({
+                                    response = {
                                         "place": place.Items[0],
                                         "averageRating": weightedRating/weights,
                                         "friend_images": friend_images,
                                         "reviews": reviews // []
-                                    });
+                                    }
+                                    response.status(200).json(response);
+                                    return response;
                                 }
                             })
 
@@ -661,7 +674,52 @@ router.get('/search_place_if_exists', async (req, res) => {
 */
 
 router.get('/search_place_if_exists', async (req, res) => {
-    console.log(req.params);
+    var query = req.query;
+    var params = {
+        TableName: "Places",
+        FilterExpression: "#p_name = :p_name and #lat = :lat and #long = :long",
+        ExpressionAttributeNames:{
+            "#p_name":"p_name",
+            "#lat":"latitude",
+            "#long":"longitude"
+        },
+        ExpressionAttributeValues:{
+            ":p_name":{ S: query.name },
+            ":lat":{ N: query.latitude },
+            ":long":{ N: query.longitude }
+        }
+    };
+    console.log(params);
+    dynamodb.scan(params, function(place_err, place_data) {
+        if (place_err){
+            console.error("Unable to query. Error:", JSON.stringify(place_err, null, 2));
+            res.status(500).send(`No place found with name = ${query.name}`);
+        } else {
+            console.log("query succeeded");
+            if (place_data.Items.length < 1){
+                res.status(500).send(`No place found with name = ${query.name}`);
+            }
+            var user_params = {
+                TableName: "Users",
+                Key:{ "user_id": { N: query.user_id } }
+            }
+            dynamodb.getItem(user_params, function(user_err, user_data) {
+                if (user_err){
+                    console.error("Unable to query. Error:", JSON.stringify(place_err, null, 2));
+                }else{
+                    console.log("GetItem succeeded:", JSON.stringify(user_data, null, 2));
+                    place_data.Items.forEach(async function(place) {
+                        console.log(place.place_id.N);
+                        console.log(user_data.Item.user_id.N);
+                        var customized_place = await get_place(place.place_id.N, user_data.Item.user_id.N, res);
+                        console.log(customized_place);
+                        res.json(customized_place);
+                    });
+                }
+            });
+            res.send("success");
+        }
+    });
 });
 
 module.exports = router;
