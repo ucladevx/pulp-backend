@@ -426,7 +426,7 @@ router.post('/create_place', async (req, res) => {
                 "tags":             { SS: req.body.tags },
                 "averageRating":    { N: "0" },                 // Rating is added in add_review
                 "numRatings":       { N: "0" },
-                "reviews":          { NS: ["0"] }               // not allowed to be empty!!!       WILL NEED TO FIX
+                "reviews":          { NS: ["1"] }               // not allowed to be empty!!!       WILL NEED TO FIX
             },
             ReturnConsumedCapacity: "TOTAL"
         };
@@ -485,21 +485,111 @@ router.post('/edit_place', async (req, res) => {
     });
 })
 
-/*
+
 // Take in the place_id and user_id and return the details of the place
 // and the weighted rating of the place
 router.get('/get_place', async (req, res) => {
-    var user = await User.findById(req.body.user_id);
-    if(user == null) {
-        res.status(500).send("Error user doesn't exist")
-        console.log("user doesn't exist")
-    }
-    else {
-      var place = await get_place(req.body.place_id, user.friends);
-      res.json(place);
-    }
+    var user_params = {
+        TableName:                  "Users",
+        KeyConditionExpression:     "user_id = :v1",
+        ExpressionAttributeValues:  { ":v1": { N: req.query.user_id } }
+    };
+    dynamodb.query(user_params, async (err, user) => {
+        if (err) {
+            res.status(500).send(`Error finding user --> ${err}`);
+        } else {
+            if (user.Count == 0) {
+                res.status(500).send(`No user with user_id = ${req.query.user_id}`);
+            } else {
+                await get_place(req.query.place_id, user.Items[0].friends.NS, res);
+            }
+        }
+    });
 })
 
+async function get_place(place_id, fbfriends, response){
+    var place_params = {
+        TableName:                  "Places",
+        KeyConditionExpression:     "place_id = :v2",
+        ExpressionAttributeValues:  { ":v2": { N: place_id } }
+    };
+    dynamodb.query(place_params, async (err, place)=>{
+        if(err){
+            console.log(`Error in querying place --> ${err}`);
+        }else{
+            if(place.Items.length==0){
+                console.log("Place does not exist");
+            }else{
+                var review_ids = place.Items[0].reviews.NS;
+                var weightedRating = 0;
+                var weights = 0;
+
+                var friend_images = [];
+                var reviews = [];
+
+                for (var i=0; i < review_ids.length; i++) {
+                    var review_params = {
+                        TableName:                  "Reviews",
+                        KeyConditionExpression:     "review_id = :v3",
+                        ExpressionAttributeValues:  { ":v3": { N: review_ids[i] } }
+                    }
+                    dynamodb.query(review_params, async (err, review)=>{
+                        if(err){
+                            console.log(`Error in querying review --> ${err}`);
+                        }else{
+                            reviews.push(review.Items[0]);
+                            //console.log(review);
+                            if(fbfriends.includes(review.Items[0].postedBy.N.toString())) { // cast ID to string
+                                weightedRating += 1.5 * review.Items[0].rating.N;
+                                weights += 1.5;
+                                var user_param = {
+                                    TableName:                  "Users",
+                                    KeyConditionExpression:     "user_id = :v1",
+                                    ExpressionAttributeValues:  { ":v1": { N: review.Items[0].postedBy.N.toString() } }
+                                }
+                                dynamodb.query(user_param, async (err, user)=>{
+                                    if(user.Items.length!=0){
+                                        console.log(user);
+                                        console.log(user.Items[0]);
+                                        friend_images.push(user.Items[0].photo.S);
+                                    }
+                                })
+                            }
+                            else {
+                                weightedRating += review.Items[0].rating.N;
+                                weights += 1;
+                            }
+                            let update_params = {
+                                TableName: "Places",
+                                Key: { "place_id": { N: place.Items[0].place_id.N}},
+                                UpdateExpression :"set averageRating = :val",
+                                ExpressionAttributeValues : { ":val": { N: (weightedRating/weights).toString() } }
+                            }
+
+                            dynamodb.updateItem(update_params, (err, data)=>{
+                                if(err){
+                                    console.log("Error in update rating");
+                                }else{
+                                    response.status(200).json({
+                                        "place": place.Items[0],
+                                        "averageRating": weightedRating/weights,
+                                        "friend_images": friend_images,
+                                        "reviews": reviews // []
+                                    });
+                                }
+                            })
+
+                        }
+                    })
+
+
+                }
+            }
+        }
+
+    })
+}
+/*
 // The logic behind get_place api route.
 async function get_place(place_id, fbfriends) {
   var place = await Place.findById(place_id);
@@ -539,7 +629,6 @@ async function get_place(place_id, fbfriends) {
   }
   return response;
 }
-
 // Returns the Place object if place exists or null if it doesn't
 // The request body should contain place_name and an array of fbfriends.
 router.get('/search_place_if_exists', async (req, res) => {
@@ -559,4 +648,9 @@ router.get('/search_place_if_exists', async (req, res) => {
   });
 })
 */
+
+router.get('/search_place_if_exists', async (req, res) => {
+    console.log(req.params);
+});
+
 module.exports = router;
