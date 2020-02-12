@@ -410,6 +410,7 @@ router.post('/add_review', async (req, res) => {
         res.status(500).send(`Error getting Reviews table length from Tables_Data --> ${err}`);
     });
 })
+//add review needs to change the reviews array in places
 
 //Create new place (only occur once when someone checked in for the first time)
 router.post('/create_place', async (req, res) => {
@@ -587,7 +588,9 @@ async function get_place(place_id, fbfriends, response){
                                         "friend_images": friend_images,
                                         "reviews": reviews // []
                                     }
+                                    console.log(response);
                                     response.status(200).json(response);
+                                    console.log("hi");
                                     return response;
                                 }
                             })
