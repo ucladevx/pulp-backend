@@ -557,7 +557,6 @@ async function get_place(place_id, fbfriends) {
   }
   return response;
 }
-
 // Returns the Place object if place exists or null if it doesn't
 // The request body should contain place_name and an array of fbfriends.
 router.get('/search_place_if_exists', async (req, res) => {
@@ -577,4 +576,9 @@ router.get('/search_place_if_exists', async (req, res) => {
   });
 })
 */
+
+router.get('/search_place_if_exists', async (req, res) => {
+    console.log(req.params);
+});
+
 module.exports = router;
