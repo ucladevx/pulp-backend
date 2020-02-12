@@ -64,23 +64,6 @@ async function increment_table_len(table_id_p) {
     })
 }
 
-// decrement len of table with table_id = table_id_p (from above constants).
-// returns a Promise. Passes nothing upon success, err on failure.
-// should never decrement TABLES_DATA.
-async function decrement_table_len(table_id_p) {
-    var update_params = {
-        TableName:                  "Tables_Data",
-        Key:                        { table_id: { N: table_id_p } },
-        UpdateExpression:           "set len = len - :one",
-        ExpressionAttributeValues:  { ":one": { N: "1" } }
-    };
-    return new Promise((resolve, reject) => {
-        dynamodb.updateItem(update_params, function(err, data) {
-            if (err)    { return reject(err); }
-            else        { resolve(); }
-        });
-    })
-}
 
 // looks for pulp user with facebook id facebook_id.
 // returns a Promise. Passes pulp_id or null upon success, err on failure.
@@ -128,9 +111,9 @@ async function convert_to_pulp_ids(facebook_ids) {
     });
 }
 
-// for each friend of the new user (stored in friends_pulp_ids), add the new user (id = new_user_id) to that friend's friends attribute.
+// for each friend of the new user (stored in friends_pulp_ids), add/remove the user (id = user_id) to/from that friend's friends attribute.
 // returns a Promise. Passes nothing on success, err on failure.
-async function update_friends(new_user_id, friends_pulp_ids) {
+async function add_or_remove_from_friends(user_id, friends_pulp_ids, add) {
     return new Promise((resolve, reject) => {
         if (friends_pulp_ids.length == 0) {
             resolve();
@@ -139,25 +122,37 @@ async function update_friends(new_user_id, friends_pulp_ids) {
 
             // if user_id is 0, just skip it and continue
             if (friend_id == "0") {
-                update_friends(new_user_id, friends_pulp_ids.slice(1))
+                add_or_remove_from_friends(user_id, friends_pulp_ids.slice(1), add)
                 .then(() => { resolve() })
                 .catch((err) => { return reject(err) });
             } else {
-                let update_params = {
-                    TableName: "Users",
-                    Key: { "user_id": { N: friend_id }},
-                    UpdateExpression: "add friends :new_user_id_s",
-                    ExpressionAttributeValues: { ":new_user_id_s": { NS : [new_user_id] } },
-                    ReturnValues: "ALL_NEW"
+                let update_params;
+                // params to add user_id to friends
+                if (add == 1) {
+                    update_params = {
+                        TableName: "Users",
+                        Key: { "user_id": { N: friend_id }},
+                        UpdateExpression: "add friends :user_id_s",
+                        ExpressionAttributeValues: { ":user_id_s": { NS : [user_id] } },
+                        ReturnValues: "ALL_NEW"
+                    }
                 }
-
-                console.log(JSON.stringify(update_params));
+                // params to remove uesr_id from friends
+                else {
+                    update_params = {
+                        TableName: "Users",
+                        Key: { "user_id": { N: friend_id }},
+                        UpdateExpression: "delete friends :user_id_s",
+                        ExpressionAttributeValues: { ":user_id_s": { NS : [user_id] } },
+                        ReturnValues: "ALL_NEW"
+                    }
+                }
 
                 dynamodb.updateItem(update_params, (err, user) => {
                     if (err) { return reject(err); }
                     else {
                         // call it recursively on the tail
-                        update_friends(new_user_id, friends_pulp_ids.slice(1))
+                        add_or_remove_from_friends(user_id, friends_pulp_ids.slice(1), add)
                         .then(() => { resolve(); })
                         .catch((err) => { return reject(err); });
                     }
@@ -166,6 +161,7 @@ async function update_friends(new_user_id, friends_pulp_ids) {
         }
     });
 }
+
 
 /////////////////////////////////////////////////
 //////////////   USER ENDPOINTS   ///////////////
@@ -204,7 +200,6 @@ router.post('/new_user', async (req, res) => {
             }
             dynamodb.putItem(user, (err, data)=> {
                 if (err) {
-                    console.log(`err in putItem --> ${err}`)
                     res.status(500).send(`Error adding new user --> ${err}`)
                 } else {
                     console.log(`New user has been created.`);
@@ -212,8 +207,8 @@ router.post('/new_user', async (req, res) => {
                     // increment len of table with table_id = USERS bc added user into it
                     increment_table_len(USERS)
                     .then(() => {
-                        // update new user's friends
-                        update_friends(new_id, friends_pulp_ids)
+                        // add new user to its friends
+                        add_or_remove_from_friends(new_id, friends_pulp_ids, 1)
                         .then(() => { res.send(`New user (${new_id}) has been created.`); })
                         .catch((err) => { res.status(500).send(`update_friends failed --> ${err}`); });
                     })
@@ -247,30 +242,44 @@ router.get('/find_user', (req, res) => {
 })
 
 // Delete user by ID
-router.get('/delete_user', (req, res) => {
-    var params = {
-        Key: { "user_id": { N: req.query.user_id } },
-        ReturnValues: "ALL_OLD",
-        TableName: "Users"
+router.post('/delete_user', (req, res) => {
+    // get info about user to delete
+    var user_params = {
+        TableName:                  "Users",
+        KeyConditionExpression:     "user_id = :v1",
+        ExpressionAttributeValues:  { ":v1": { N: req.body.user_id } }
     };
-    dynamodb.deleteItem(params, function(err, user) {
+    dynamodb.query(user_params, (err1, user) => {
         if (err1) {
-            res.status(500).send(`Error deleting user: " + ${err1}`);
+            res.status(500).send(`Error finding user --> ${err1}`);
         } else {
-            // if dynamo found the user and deleted it
-            if ('Attributes' in user) {
-                // NEED to remove this user from every other user that has it in its friends list
-
-                // decrement table len
-                decrement_table_len(USERS)
-                .then(() => {
-                    res.send(`User (${req.query.user_id}) has been destroyed.`);
-                })
-                .catch((err2) => {
-                    res.status(500).send(`Decrement table failed in delete_user --> ${err2}`);
-                });
+            if (user.Count == 0) {
+                res.status(500).send(`No user with user_id = ${req.body.user_id}`);
             } else {
-                res.status(500).send(`User (${req.query.user_id}) could not be deleted because it did not exist.`);
+                // if user exists, save its list of friends before deleting it
+                const list_of_friends = user.Items[0].friends.NS;
+
+                // delete user
+                var params = {
+                    Key: { "user_id": { N: req.body.user_id } },
+                    ReturnValues: "ALL_OLD",
+                    TableName: "Users"
+                };
+                dynamodb.deleteItem(params, function(err2, user) {
+                    if (err2) {
+                        res.status(500).send(`Error deleting user: " + ${err2}`);
+                    } else {
+                        // if dynamo found the user and deleted it
+                        if ('Attributes' in user) {
+                            // remove this user from every other user that has it in its friends list
+                            add_or_remove_from_friends(req.body.user_id, list_of_friends, 0)
+                            .then(() => { res.send(`User (${req.body.user_id}) has been destroyed.`); })
+                            .catch((err4) => { res.status(500).send(`Failed to remove_from_friends --> ${err4}`); });
+                        } else {
+                            res.status(500).send(`User (${req.body.user_id}) could not be deleted because it did not exist.`);
+                        }
+                    }
+                });
             }
         }
     });
