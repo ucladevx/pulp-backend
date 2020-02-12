@@ -64,23 +64,6 @@ async function increment_table_len(table_id_p) {
     })
 }
 
-// decrement len of table with table_id = table_id_p (from above constants).
-// returns a Promise. Passes nothing upon success, err on failure.
-// should never decrement TABLES_DATA.
-async function decrement_table_len(table_id_p) {
-    var update_params = {
-        TableName:                  "Tables_Data",
-        Key:                        { table_id: { N: table_id_p } },
-        UpdateExpression:           "set len = len - :one",
-        ExpressionAttributeValues:  { ":one": { N: "1" } }
-    };
-    return new Promise((resolve, reject) => {
-        dynamodb.updateItem(update_params, function(err, data) {
-            if (err)    { return reject(err); }
-            else        { resolve(); }
-        });
-    })
-}
 
 // looks for pulp user with facebook id facebook_id.
 // returns a Promise. Passes pulp_id or null upon success, err on failure.
@@ -290,12 +273,7 @@ router.post('/delete_user', (req, res) => {
                         if ('Attributes' in user) {
                             // remove this user from every other user that has it in its friends list
                             add_or_remove_from_friends(req.body.user_id, list_of_friends, 0)
-                            .then(() => {
-                                // decrement table len
-                                decrement_table_len(USERS)
-                                .then(() => { res.send(`User (${req.body.user_id}) has been destroyed.`); })
-                                .catch((err3) => { res.status(500).send(`Decrement table failed in delete_user --> ${err3}`); });
-                            })
+                            .then(() => { res.send(`User (${req.body.user_id}) has been destroyed.`); })
                             .catch((err4) => { res.status(500).send(`Failed to remove_from_friends --> ${err4}`); });
                         } else {
                             res.status(500).send(`User (${req.body.user_id}) could not be deleted because it did not exist.`);
