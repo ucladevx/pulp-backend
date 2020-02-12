@@ -17,7 +17,6 @@ var AWS = require("aws-sdk");
 AWS.config.update({region:'us-west-2', endpoint: "http://localhost:8000"});
 //AWS.config.update({region:'us-east-1'});
 var dynamodb = new AWS.DynamoDB();
-var docClient = new AWS.DynamoDB.DocumentClient();
 
 // Table ID Definitions
 const TABLES_DATA   = "0";
@@ -83,170 +82,151 @@ async function decrement_table_len(table_id_p) {
     })
 }
 
+// looks for pulp user with facebook id facebook_id.
+// returns a Promise. Passes pulp_id or null upon success, err on failure.
+async function get_pulp_id(facebook_id) {
+    var params = {
+        TableName: "Users",
+        IndexName: "facebook_id_index",
+        KeyConditionExpression: "facebook_id = :value",
+        ExpressionAttributeValues: { ":value": {S: facebook_id}, }
+    };
+    return new Promise((resolve, reject) => {
+        dynamodb.query(params, (err, friend) => {
+            if (err) { return reject(err); }
+            else {
+                if (friend.Items.length != 0)   { resolve(friend.Items[0].user_id.N); }
+                else                            { resolve(null); }
+            }
+        })
+    });
+}
+
+// converts array of facebook IDs to array of pulp IDs.
+// returns a Promise. Passes new array upon success, err on failure.
+async function convert_to_pulp_ids(facebook_ids) {
+    return new Promise((resolve, reject) => {
+        let pulp_ids = [];
+        if (facebook_ids.length != 0) {
+            get_pulp_id(facebook_ids[0])
+            .then((pulp_id) => {
+                if (pulp_id != null)    { pulp_ids.push(pulp_id.toString()); }
+                else                    { console.log(`Could not find a pulp user with facebook id = ${facebook_ids[0]}`); }
+
+                // recursively call on tail
+                convert_to_pulp_ids(facebook_ids.slice(1))
+                .then((rest) => {
+                    pulp_ids.push(...rest);
+                    resolve(pulp_ids);
+                })
+                .catch((err) => { return reject(err); })
+            })
+            .catch((err) => { return reject(err); });
+        } else {
+            resolve(pulp_ids);
+        }
+    });
+}
+
+// for each friend of the new user (stored in friends_pulp_ids), add the new user (id = new_user_id) to that friend's friends attribute.
+// returns a Promise. Passes nothing on success, err on failure.
+async function update_friends(new_user_id, friends_pulp_ids) {
+    return new Promise((resolve, reject) => {
+        if (friends_pulp_ids.length == 0) {
+            resolve();
+        } else {
+            let friend_id = friends_pulp_ids[0];
+
+            // if user_id is 0, just skip it and continue
+            if (friend_id == "0") {
+                update_friends(new_user_id, friends_pulp_ids.slice(1))
+                .then(() => { resolve() })
+                .catch((err) => { return reject(err) });
+            } else {
+                let update_params = {
+                    TableName: "Users",
+                    Key: { "user_id": { N: friend_id }},
+                    UpdateExpression: "add friends :new_user_id_s",
+                    ExpressionAttributeValues: { ":new_user_id_s": { NS : [new_user_id] } },
+                    ReturnValues: "ALL_NEW"
+                }
+
+                console.log(JSON.stringify(update_params));
+
+                dynamodb.updateItem(update_params, (err, user) => {
+                    if (err) { return reject(err); }
+                    else {
+                        // call it recursively on the tail
+                        update_friends(new_user_id, friends_pulp_ids.slice(1))
+                        .then(() => { resolve(); })
+                        .catch((err) => { return reject(err); });
+                    }
+                });
+            }
+        }
+    });
+}
+
 /////////////////////////////////////////////////
 //////////////   USER ENDPOINTS   ///////////////
 /////////////////////////////////////////////////
 
 // Insert new user into database
 router.post('/new_user', async (req, res) => {
-    console.log(req.body);
     let friends_facebook_ids = req.body.friends;    // array of friends' FB id's
-    let friends_pulp_ids = ['0'];                      // array of friends' Pulp id's
+    let friends_pulp_ids = ["0"];                   // array of friends' Pulp id's
 
-    get_table_len(USERS).then(async (length) => {
+    // get the length of the Users table to calculate new user's pulp id
+    get_table_len(USERS)
+    .then((length) => {
         let new_id = (parseInt(length, 10) + 1).toString();
-        for (let i = 0; i < friends_facebook_ids.length; i++) {
-            var params = {
+
+        // convert inputted facebook IDs to internal pulp IDs and store in friends_pulp_ids
+        convert_to_pulp_ids(friends_facebook_ids)
+        .then((pulp_ids) => {
+            friends_pulp_ids.push(...pulp_ids);
+
+            var user = {
                 TableName: "Users",
-                IndexName: "facebook_id_index",
-                KeyConditionExpression: "#key = :value",
-                ExpressionAttributeNames: {
-                    "#key":  "facebook_id"
+                Item: {
+                    "user_id" :     {N: new_id},
+                    "first_name":   {S: req.body.first_name},
+                    "last_name":    {S: req.body.last_name},
+                    "photo":        {S: req.body.photo},
+                    "friends":      {NS: friends_pulp_ids},     // list of friends' pulp db id's
+                    "places":       {NS: ["0"]},                // list of visited places' pulp db id's. Initialize to just hold 0.
+
+                    // Auth info (unsure whether they are needed, but storing just in case for now)
+                    "access_token": {S: req.body.access_token},    // I don't think this will be needed bc no need to query facebook after initial setup, but keep for now
+                    "facebook_id":  {S: req.body.facebook_id}
                 },
-                ExpressionAttributeValues: {
-                    ":value": {S: friends_facebook_ids[i]},
-                }
-            };
-            await dynamodb.query(params, (err, friend) => {
-                if (err) {
-                    res.status(500).send(`Error querying for new user's fb friend (${friends_facebook_ids[i]}) --> ${err}`);
-                } else {
-                    if (friend.Items.length!=0) {
-                        friends_pulp_ids.push(friend.Items[0].user_id.N);
-                        //console.log(friends_pulp_ids);
-                    } else {
-                        console.log(`Could not find a user with fb id ${friends_facebook_ids[i]}`)
-                    }
-                }
-            })
-        }
-
-        for(let i = 1; i < friends_pulp_ids.length; i++){
-            var params = {
-                TableName:"Users",
-                IndexName:"facebook_id_index",
-                KeyConditionExpression: "user_id = :value",
-                ExpressionAttributeValues: {
-                    ":value": {N: friends_pulp_ids[i]},
-                }
-            };
-            console.log(params);
-            await dynamodb.query(params, (err, friend) => {
-                if (err) {
-                    res.status(500).send(`Error in reaching the facebook friend --> ${err}`);
-                } else {
-                    if (friend.Items.length!= 0) {
-                        var update = {
-                            TableName:"Users",
-                            UpdateExpression:"set friends = list_append(friends, :l)",
-                            ExpressionAttributeValues:{
-                                ":l": friend.Items[0].facebook_id.S,
-                            },
-                            ReturnValues : "UPDATE_NEW"
-                        };
-                        console.log("Updating the item...");
-                        dynamodb.updateItem(update, function(err, data) {
-                            if (err) {
-                                console.error("Unable to update item. Error JSON:", JSON.stringify(err, null, 2));
-                            } else {
-                                console.log("Success");
-                            }
-                        });
-
-                    } else {
-                        console.log(`Could not find a user with fb id ${friends_facebook_ids[i]}`);
-                    }
-                }
-            })
-
-        }
-        console.log(friends_pulp_ids);
-        var user = {
-            TableName: "Users",
-            Item: {
-                "user_id" : {N: new_id},
-                "first_name": {S: req.body.first_name},
-                "last_name": {S: req.body.last_name},
-                "photo": {S: req.body.photo},
-                "friends": {NS: friends_pulp_ids},   // list of friends' pulp db id's
-                "places": {SS: req.body.places},   // list of visited places' pulp db id's
-
-                // Auth info (unsure whether they are needed, but storing just in case for now)
-                "access_token": {S: req.body.access_token},    // I don't think this will be needed bc no need to query facebook after initial setup, but keep for now
-                "facebook_id": {S: req.body.facebook_id}
+                ReturnConsumedCapacity: "TOTAL"
             }
-        }
+            dynamodb.putItem(user, (err, data)=> {
+                if (err) {
+                    console.log(`err in putItem --> ${err}`)
+                    res.status(500).send(`Error adding new user --> ${err}`)
+                } else {
+                    console.log(`New user has been created.`);
 
-        await dynamodb.putItem(user, (err, data)=> {
-            if (err) {
-                res.status(500).send(`Error add new user --> ${err}`)
-            } else {
-                // increment len of table with table_id = PLACES bc added place into it
-                increment_table_len(USERS)
+                    // increment len of table with table_id = USERS bc added user into it
+                    increment_table_len(USERS)
                     .then(() => {
-                        console.log(`New user (${new_id}) has been created.`);
+                        // update new user's friends
+                        update_friends(new_id, friends_pulp_ids)
+                        .then(() => { res.send(`New user (${new_id}) has been created.`); })
+                        .catch((err) => { res.status(500).send(`update_friends failed --> ${err}`); });
                     })
-                    .catch((err) => {
-                        res.status(500).send(`Increment table failed in create_place --> ${err}`);
-                    });
-            }
-        })
-
-        res.send(`Success updating user (${new_id}).`);
-
-    }).catch((err) => {
-        res.status(500).send(`Error getting Users table length from Tables_Data --> ${err}`);
-    });
-
-
-})
-
-
-
-    // Add new user to each of new_user's friends already on the app
-/*
-
-    for(let i = 0; i < friends_pulp_ids.length; i++){
-        var params = {
-            TableName:"Users",
-            IndexName:"facebook_id_index",
-            KeyConditionExpression: "facebook_id = :value",
-            ExpressionAttributeValues: {":value":{ S: friends_pulp_ids[i] }}
-        };
-        await docClient.query(params, (err, friend) => {
-            if (err) {
-                console.log("Error in reaching pulp friend, ",JSON.stringify(err, null, 2));
-            } else {
-                if (friend) {
-                    var update = {
-                        TableName:"Users",
-                        UpdateExpression:"set friends = list_append(friends, :l)",
-                        ExpressionAttributeValues:{
-                            ":l": friend.user_id,
-                        },
-                        ReturnValues : "UPDATE_NEW"
-                    };
-                    console.log("Updating the item...");
-                    docClient.update(update, function(err, data) {
-                        if (err) {
-                            console.error("Unable to update item. Error JSON:", JSON.stringify(err, null, 2));
-                        } else {
-                            console.log("UpdateItem succeeded:", JSON.stringify(data, null, 2));
-                        }
-                    });
-
-                } else {
-                    console.log(`Could not find a user with fb id ${friends_facebook_ids[i]}`);
+                    .catch((err) => { res.status(500).send(`Increment table failed in new_user --> ${err}`); });
                 }
-            }
+            })
         })
-
-    }
+        .catch((err) => { res.status(500).send(`Unable to convert facebook IDs to pulp IDs --> ${err}`); });
+    })
+    .catch((err) => { res.status(500).send(`Error getting Users table length from Tables_Data --> ${err}`); });
 })
 
-*/
 // Find user by ID
-
 router.get('/find_user', (req, res) => {
     var user_params = {
         TableName:                  "Users",
@@ -309,9 +289,10 @@ router.post('/edit_user', async (req, res) => {
             ":first_name":      { S:  req.body.first_name },
             ":last_name":       { S:  req.body.last_name },
             ":photo":           { S:  req.body.photo },
-            ":places":          { SS: req.body.places },
+            ":places":          { NS: req.body.places },
             ":access_token":    { S:  req.body.access_token },
             ":facebook_id":     { S:  req.body.facebook_id }
+            //friends?
         },
         ReturnValues: "ALL_NEW"
     }
@@ -444,10 +425,10 @@ router.post('/create_place', async (req, res) => {
             TableName: "Places",
             Item: {
                 "place_id":         { N: new_id },
-                "p_name":             { S: req.body.name },
+                "p_name":           { S: req.body.name },
                 "image":            { S: req.body.image },
                 "city":             { S: req.body.city },
-                "p_state":            { S: req.body.state },
+                "p_state":          { S: req.body.state },
                 "address1":         { S: req.body.address1 },
                 "address2":         { S: req.body.address2 },
                 "zip_code":         { S: req.body.zip_code },
@@ -535,7 +516,6 @@ router.get('/get_place', async (req, res) => {
             }
         }
     });
-
 })
 
 async function get_place(place_id, fbfriends, response){
@@ -660,7 +640,6 @@ async function get_place(place_id, fbfriends) {
   }
   return response;
 }
-
 // Returns the Place object if place exists or null if it doesn't
 // The request body should contain place_name and an array of fbfriends.
 router.get('/search_place_if_exists', async (req, res) => {
@@ -680,4 +659,9 @@ router.get('/search_place_if_exists', async (req, res) => {
   });
 })
 */
+
+router.get('/search_place_if_exists', async (req, res) => {
+    console.log(req.params);
+});
+
 module.exports = router;
