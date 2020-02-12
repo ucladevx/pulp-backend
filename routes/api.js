@@ -670,7 +670,51 @@ router.get('/search_place_if_exists', async (req, res) => {
 */
 
 router.get('/search_place_if_exists', async (req, res) => {
-    console.log(req.params);
+    var query = req.query;
+    var params = {
+        TableName: "Places",
+        FilterExpression: "#p_name = :p_name and #lat = :lat and #long = :long",
+        ExpressionAttributeNames:{
+            "#p_name":"p_name",
+            "#lat":"latitude",
+            "#long":"longitude"
+        },
+        ExpressionAttributeValues:{
+            ":p_name":{ S: query.name },
+            ":lat":{ N: query.latitude },
+            ":long":{ N: query.longitude }
+        }
+    };
+    console.log(params);
+    dynamodb.scan(params, function(place_err, place_data) {
+        if (place_err){
+            console.error("Unable to query. Error:", JSON.stringify(place_err, null, 2));
+            res.status(500).send(`No place found with name = ${query.name}`);
+        } else {
+            console.log("query succeeded");
+            if (data.Items.length < 1){
+                res.status(500).send(`No place found with name = ${query.name}`);
+            }
+            var user_params = {
+                TableName: "Users",
+                Key:{ "user_id": { N: query.user_id } }
+            }
+            dynamodb.getItem(user_params, function(user_err, user_data) {
+                if (err){
+
+                }else{
+                    console.log("GetItem succeeded:", JSON.stringify(user_data, null, 2));
+                    place_data.Items.forEach(function(place) {
+                        console.log(place);
+                        var customized_place = await get_place(place.place_id, user_data.user_id);
+                        console.log(customized_place);
+                        res.json(customized_place);
+                    });
+                }
+            });
+            res.send("success");
+        }
+    });
 });
 
 module.exports = router;
