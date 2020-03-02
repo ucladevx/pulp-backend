@@ -391,13 +391,13 @@ router.get('/get_map', async (req, res) => {
 
 router.post('/add_review', async (req, res) => {
 
-    // get length of Reviews table
+    // add a new review into Reviews
     get_table_len(REVIEWS)
     .then((length) => {
         // converts to int, adds one, converts back to string to store as new place's id
         let new_id = (parseInt(length, 10) + 1).toString();
-
         var today = new Date().toString();
+
         var params = {
             TableName: "Reviews",
             Item: {
@@ -411,6 +411,8 @@ router.post('/add_review', async (req, res) => {
             },
             ReturnConsumedCapacity: "TOTAL"
         };
+
+
         dynamodb.putItem(params, async (err, review) => {
             if (err) {
                 res.status(500).send(`Error creating new review --> ${err}`)
@@ -418,11 +420,33 @@ router.post('/add_review', async (req, res) => {
                 // increment len of table with table_id = REVIEWS bc added place into it
                 increment_table_len(REVIEWS)
                 .then(() => {
-                    res.send(`New review (${new_id}) has been created.`)
+                    console.log(`New review (${new_id}) has been created.`)
                 })
                 .catch((err) => {
                     res.status(500).send(`Increment table failed in add_review --> ${err}`);
                 });
+            }
+        });
+        // add review_id into reviews field in Places table
+        console.log(String(new_id))
+        var params2 = {
+            TableName: "Places",
+            Key: { "place_id": { N: req.body.place_id }},
+            UpdateExpression: "ADD reviews :review_id",
+            ExpressionAttributeValues:{
+                ":review_id": { "NS": [new_id.toString()] }
+            },
+            ReturnValues:"UPDATED_NEW"
+        };
+        console.log(params2);
+        console.log("Updating reviews in Places");
+        dynamodb.updateItem(params2, function(err, data) {
+            if (err) {
+                console.error("Unable to add review id into reviews in Places; Error JSON: ", JSON.stringify(err, null, 2));
+                res.status(500).send(`Error editing place`);
+            } else {
+                console.log("UpdateItem succeeded:", JSON.stringify(data, null, 2));
+                res.send(`New review ${new_id} has been created and added into Places.`);
             }
         });
     })
@@ -457,7 +481,7 @@ router.post('/create_place', async (req, res) => {
                 "tags":             { SS: req.body.tags },
                 "averageRating":    { N: "0" },                 // Rating is added in add_review
                 "numRatings":       { N: "0" },
-                "reviews":          { NS: ["1"] }               // not allowed to be empty!!!       WILL NEED TO FIX
+                "reviews":          { NS: ["1"]}               // not allowed to be empty!!!       WILL NEED TO FIX
             },
             ReturnConsumedCapacity: "TOTAL"
         };
