@@ -338,43 +338,47 @@ router.get('/get_map', async (req, res) => {
             if(user.Items.length!=0){
                 let place_ids = [];
                 let friends = user.Items[0].friends.NS;
-                for (let i = 0; i < friends.length; i++) {
-                    let friend_param = {
-                        TableName: "Users",
-                        KeyConditionExpression: "user_id = :val",
-                        ExpressionAttributeValues: {":val":{ N: friends[i] }}
-                    }
-                    dynamodb.query(friend_param, (err, friend)=>{
-                        if(err){
-                            console.log('Could not find friend in DB');
-                        }else{
-                            if(friend.Items.length!=0){
-                                let friend_places = friend.Items[0].places.SS;
-                                for (let j = 0; j < friend_places.length; j++) {
-                                    let place_id = friend_places[j];
-                                    if (place_ids.includes(place_id.toString())) {
-                                        continue;
-                                    }
-                                    place_ids.push(place_id.toString());
-                                }
-                                let list = [];
-                                for (let k = 0; k < place_ids.length; k++) {
-                                    let data = get_place(place_ids[k], friends);
-                                    if(data)
-                                        list.push(data);
-                                }
-                            }
-                        }
+                console.log(friends);
+                // for (let i = 0; i < friends.length; i++) {
+                //     let friend_param = {
+                //         TableName: "Users",
+                //         KeyConditionExpression: "user_id = :val",
+                //         ExpressionAttributeValues: {":val":{ N: friends[i] }}
+                //     }
+                //     dynamodb.query(friend_param, (err, friend)=>{
+                //         if(err){
+                //             console.log('Could not find friend in DB');
+                //         }else{
+                //             if(friend.Items.length!=0){
+                //                 let friend_places = friend.Items[0].places.SS;
+                //                 for (let j = 0; j < friend_places.length; j++) {
+                //                     let place_id = friend_places[j];
+                //                     if (place_ids.includes(place_id.toString())) {
+                //                         continue;
+                //                     }
+                //                     place_ids.push(place_id.toString());
+                //                 }
+                //
+                //             }
+                //         }
+                //     })
+                // }
+                let list = [];
+                get_friend_places(friends, 0, place_ids)
+                    .then((places)=>{
+                        console.log(places);
+                        get_place_list(places, 0, friends, list)
+                            .then((list)=>{
+                                list.sort((a, b) => (a.averageRating > b.averageRating) ? 1 :
+                                    (a.averageRating === b.averageRating) ? 1 : -1 )
+                                res.send(list);
+                            })
                     })
-                }
-
                 // use get_place to get data of each place with custom rating for the user
 
 
                 // Sort the list by average rating first and distance to break the tie
-                list.sort((a, b) => (a.averageRating > b.averageRating) ? 1 :
-                    (a.averageRating === b.averageRating) ? ((a.distance > b.distance) ? 1 : -1) : -1 )
-                res.send(list);
+
             }
         }
     })
@@ -382,6 +386,65 @@ router.get('/get_map', async (req, res) => {
 
 })
 
+async function get_place_list(place, index, friends, list){
+    return new Promise((resolve, reject)=>{
+        if(index!==place.length) {
+            get_place(place[index], friends)
+                .then((response) => {
+                    if (response) {
+                        list.push(response);
+                        get_place_list(place, index + 1, friends, list)
+                            .then((list)=>{
+                                resolve(list);
+                            })
+                    }
+                })
+        }else{
+            resolve(list);
+        }
+    })
+}
+
+async function get_friend_places(friends, index, place_ids){
+    return new Promise((resolve, reject)=>{
+        if(index!==friends.length) {
+            let friend_param = {
+                TableName: "Users",
+                KeyConditionExpression: "user_id = :val",
+                ExpressionAttributeValues: {":val": {N: friends[index]}}
+            }
+            dynamodb.query(friend_param, (err, friend) => {
+                if (err) {
+                    console.log('Could not find friend in DB');
+                    get_friend_places(friends,index+1,place_ids)
+                        .then((place_ids)=>{
+                            resolve(place_ids);
+                        })
+                } else {
+                    if (friend.Items.length != 0) {
+                        console.log(friend.Items[0]);
+                        let friend_places = friend.Items[0].places.NS;
+                        console.log(friend_places);
+                        for (let j = 0; j < friend_places.length; j++) {
+                            let place_id = friend_places[j];
+                            if (place_ids.includes(place_id.toString())) {
+                                continue;
+                            }
+                            place_ids.push(place_id.toString());
+                        }
+
+                    }
+                }
+                get_friend_places(friends,index+1,place_ids)
+                    .then((place_ids)=>{
+                        resolve(place_ids);
+                    })
+            })
+        }else{
+            resolve(place_ids);
+        }
+    })
+}
 
 
 
@@ -556,97 +619,100 @@ router.get('/get_place', async (req, res) => {
             if (user.Count == 0) {
                 res.status(500).send(`No user with user_id = ${req.query.user_id}`);
             } else {
-                await get_place(req.query.place_id, user.Items[0].friends.NS, res);
+                await get_place(req.query.place_id, user.Items[0].friends.NS)
+                    .then((response)=>{
+                        res.status(200).json(response);
+                    })
             }
         }
     });
 })
 
-async function get_place(place_id, fbfriends, response){
+async function get_place(place_id, fbfriends){
     var place_params = {
         TableName:                  "Places",
         KeyConditionExpression:     "place_id = :v2",
         ExpressionAttributeValues:  { ":v2": { N: place_id } }
     };
-    dynamodb.query(place_params, async (err, place)=>{
-        if(err){
-            console.log(`Error in querying place --> ${err}`);
-        }else{
-            if(place.Items.length==0){
-                console.log("Place does not exist");
-            }else{
-                var review_ids = place.Items[0].reviews.NS;
-                var weightedRating = 0;
-                var weights = 0;
+    return new Promise((resolve, reject)=> {
+        dynamodb.query(place_params, async (err, place) => {
+            if (err) {
+                console.log(`Error in querying place --> ${err}`);
+            } else {
+                if (place.Items.length == 0) {
+                    console.log("Place does not exist");
+                } else {
+                    var review_ids = place.Items[0].reviews.NS;
+                    var weightedRating = 0;
+                    var weights = 0;
 
-                var friend_images = [];
-                var reviews = [];
-                console.log(review_ids);
-                console.log(review_ids.length)
-                for (var i=1; i < review_ids.length; i++) {
-                    var review_params = {
-                        TableName:                  "Reviews",
-                        KeyConditionExpression:     "review_id = :v3",
-                        ExpressionAttributeValues:  { ":v3": { N: review_ids[i] } }
-                    }
-                    dynamodb.query(review_params, async (err, review)=>{
-                        if(err){
-                            console.log(`Error in querying review --> ${err}`);
-                        }else{
-                            reviews.push(review.Items[0]);
-                            //console.log(review);
-                            if(fbfriends.includes(review.Items[0].postedBy.N.toString())) { // cast ID to string
-                                weightedRating += 1.5 * review.Items[0].rating.N;
-                                weights += 1.5;
-                                var user_param = {
-                                    TableName:                  "Users",
-                                    KeyConditionExpression:     "user_id = :v1",
-                                    ExpressionAttributeValues:  { ":v1": { N: review.Items[0].postedBy.N.toString() } }
+                    var friend_images = [];
+                    var reviews = [];
+                    console.log(review_ids);
+                    console.log(review_ids.length);
+                    for (let i = 1; i < review_ids.length; i++) {
+                        var review_params = {
+                            TableName: "Reviews",
+                            KeyConditionExpression: "review_id = :v3",
+                            ExpressionAttributeValues: {":v3": {N: review_ids[i]}}
+                        }
+                        dynamodb.query(review_params, async (err, review) => {
+                            if (err) {
+                                console.log(`Error in querying review --> ${err}`);
+                            } else {
+                                reviews.push(review.Items[0]);
+                                //console.log(review);
+                                if (fbfriends.includes(review.Items[0].postedBy.N.toString())) { // cast ID to string
+                                    weightedRating += 1.5 * review.Items[0].rating.N;
+                                    weights += 1.5;
+                                    var user_param = {
+                                        TableName: "Users",
+                                        KeyConditionExpression: "user_id = :v1",
+                                        ExpressionAttributeValues: {":v1": {N: review.Items[0].postedBy.N.toString()}}
+                                    }
+                                    dynamodb.query(user_param, async (err, user) => {
+                                        if (user.Items.length != 0) {
+                                            console.log(user);
+                                            console.log(user.Items[0]);
+                                            friend_images.push(user.Items[0].photo.S);
+                                        }
+                                    })
+                                } else {
+                                    weightedRating += review.Items[0].rating.N;
+                                    weights += 1;
                                 }
-                                dynamodb.query(user_param, async (err, user)=>{
-                                    if(user.Items.length!=0){
-                                        console.log(user);
-                                        console.log(user.Items[0]);
-                                        friend_images.push(user.Items[0].photo.S);
+                                let update_params = {
+                                    TableName: "Places",
+                                    Key: {"place_id": {N: place.Items[0].place_id.N}},
+                                    UpdateExpression: "set averageRating = :val",
+                                    ExpressionAttributeValues: {":val": {N: (weightedRating / weights).toString()}}
+                                }
+                                dynamodb.updateItem(update_params, (err, data) => {
+                                    if (err) {
+                                        console.log("Error in update rating");
+                                        return reject(err);
+                                    } else {
+                                        response = {
+                                            "place": place.Items[0],
+                                            "averageRating": weightedRating / weights,
+                                            "friend_images": friend_images,
+                                            "reviews": reviews // []
+                                        }
+                                        console.log(response);
+                                        // response.status(200).json(response);
+                                        //console.log("hi");
+                                        resolve(response);
                                     }
                                 })
                             }
-                            else {
-                                weightedRating += review.Items[0].rating.N;
-                                weights += 1;
-                            }
-                            let update_params = {
-                                TableName: "Places",
-                                Key: { "place_id": { N: place.Items[0].place_id.N}},
-                                UpdateExpression :"set averageRating = :val",
-                                ExpressionAttributeValues : { ":val": { N: (weightedRating/weights).toString() } }
-                            }
+                        })
 
-                            dynamodb.updateItem(update_params, (err, data)=>{
-                                if(err){
-                                    console.log("Error in update rating");
-                                }else{
-                                    response = {
-                                        "place": place.Items[0],
-                                        "averageRating": weightedRating/weights,
-                                        "friend_images": friend_images,
-                                        "reviews": reviews // []
-                                    }
-                                    console.log(response);
-                                    response.status(200).json(response);
-                                    console.log("hi");
-                                    return response;
-                                }
-                            })
 
-                        }
-                    })
-
+                    }
 
                 }
             }
-        }
-
+        })
     })
 }
 /*
