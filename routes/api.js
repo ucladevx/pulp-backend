@@ -393,11 +393,11 @@ async function get_place_list(place, index, friends, list){
                 .then((response) => {
                     if (response) {
                         list.push(response);
-                        get_place_list(place, index + 1, friends, list)
-                            .then((list)=>{
-                                resolve(list);
-                            })
                     }
+                    get_place_list(place, index + 1, friends, list)
+                        .then((list)=>{
+                            resolve(list);
+                        })
                 })
         }else{
             resolve(list);
@@ -641,6 +641,7 @@ async function get_place(place_id, fbfriends){
             } else {
                 if (place.Items.length == 0) {
                     console.log("Place does not exist");
+                    resolve(null);
                 } else {
                     var review_ids = place.Items[0].reviews.NS;
                     var weightedRating = 0;
@@ -661,7 +662,7 @@ async function get_place(place_id, fbfriends){
                                 console.log(`Error in querying review --> ${err}`);
                             } else {
                                 reviews.push(review.Items[0]);
-                                //console.log(review);
+                                console.log(review);
                                 if (fbfriends.includes(review.Items[0].postedBy.N.toString())) { // cast ID to string
                                     weightedRating += 1.5 * review.Items[0].rating.N;
                                     weights += 1.5;
