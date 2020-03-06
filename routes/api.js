@@ -639,16 +639,15 @@ async function get_reviews(reviews, review_ids, index, fbfriends, friend_images,
             dynamodb.query(review_params, async (err, review) => {
                 if (err) {
                     console.log(`Error in querying review --> ${err}`);
-                    get_reviews(reviews, review_ids, index+1, fbfriends, friend_images)
-                        .then(()=>{
-                            resolve();
+                    get_reviews(reviews, review_ids, index+1, fbfriends, friend_images, weightedRating, weights)
+                        .then((arr)=>{
+                            resolve(arr);
                         })
 
                 } else {
                     reviews.push(review.Items[0]);
-                    console.log(review);
                     if (fbfriends.includes(review.Items[0].postedBy.N.toString())) { // cast ID to string
-                        weightedRating += 1.5 * review.Items[0].rating.N;
+                        weightedRating += 1.5 * parseFloat(review.Items[0].rating.N);
                         weights += 1.5;
                         var user_param = {
                             TableName: "Users",
@@ -663,17 +662,17 @@ async function get_reviews(reviews, review_ids, index, fbfriends, friend_images,
                             }
                         })
                     } else {
-                        weightedRating += review.Items[0].rating.N;
+                        weightedRating += parseFloat(review.Items[0].rating.N);
                         weights += 1;
                     }
-                    get_reviews(reviews, review_ids, index+1, fbfriends, friend_images)
-                        .then(()=>{
-                            resolve();
+                    get_reviews(reviews, review_ids, index+1, fbfriends, friend_images, weightedRating, weights)
+                        .then((arr)=>{
+                            resolve(arr);
                         })
                 }
             })
         }else{
-            resolve();
+            resolve([weightedRating, weights]);
         }
     })
 
@@ -695,8 +694,8 @@ async function get_place(place_id, fbfriends){
                     resolve(null);
                 } else {
                     var review_ids = place.Items[0].reviews.NS;
-                    var weightedRating = 0;
-                    var weights = 0;
+                    let weightedRating = 0.0;
+                    let weights = 0.0;
 
                     var friend_images = [];
                     var reviews = [];
@@ -704,12 +703,14 @@ async function get_place(place_id, fbfriends){
                     console.log(review_ids.length);
                     //from here!
                     await get_reviews(reviews, review_ids, 0, fbfriends, friend_images, weightedRating, weights)
-                        .then(()=>{
+                        .then((arr)=>{
+                            console.log(arr[0]);
+                            console.log(arr[1]);
                             let update_params = {
                                 TableName: "Places",
                                 Key: {"place_id": {N: place.Items[0].place_id.N}},
                                 UpdateExpression: "set averageRating = :val",
-                                ExpressionAttributeValues: {":val": {N: (weightedRating / weights).toString()}}
+                                ExpressionAttributeValues: {":val": {N: (arr[0] / arr[1]).toString()}}
                             }
                             dynamodb.updateItem(update_params, (err, data) => {
                                 if (err) {
@@ -718,7 +719,7 @@ async function get_place(place_id, fbfriends){
                                 } else {
                                     let response = {
                                         "place": place.Items[0],
-                                        "averageRating": weightedRating / weights,
+                                        "averageRating": arr[0] / arr[1],
                                         "friend_images": friend_images,
                                         "reviews": reviews // []
                                     }
