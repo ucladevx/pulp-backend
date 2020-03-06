@@ -628,6 +628,57 @@ router.get('/get_place', async (req, res) => {
     });
 })
 
+async function get_reviews(reviews, review_ids, index, fbfriends, friend_images, weightedRating, weights){
+    return new Promise((resolve, reject) => {
+    if(index!==review_ids.length) {
+        var review_params = {
+            TableName: "Reviews",
+            KeyConditionExpression: "review_id = :v3",
+            ExpressionAttributeValues: {":v3": {N: review_ids[index]}}
+        }
+            dynamodb.query(review_params, async (err, review) => {
+                if (err) {
+                    console.log(`Error in querying review --> ${err}`);
+                    get_reviews(reviews, review_ids, index+1, fbfriends, friend_images)
+                        .then(()=>{
+                            resolve();
+                        })
+
+                } else {
+                    reviews.push(review.Items[0]);
+                    console.log(review);
+                    if (fbfriends.includes(review.Items[0].postedBy.N.toString())) { // cast ID to string
+                        weightedRating += 1.5 * review.Items[0].rating.N;
+                        weights += 1.5;
+                        var user_param = {
+                            TableName: "Users",
+                            KeyConditionExpression: "user_id = :v1",
+                            ExpressionAttributeValues: {":v1": {N: review.Items[0].postedBy.N.toString()}}
+                        }
+                        dynamodb.query(user_param, async (err, user) => {
+                            if (user.Items.length != 0) {
+                                console.log(user);
+                                console.log(user.Items[0]);
+                                friend_images.push(user.Items[0].photo.S);
+                            }
+                        })
+                    } else {
+                        weightedRating += review.Items[0].rating.N;
+                        weights += 1;
+                    }
+                    get_reviews(reviews, review_ids, index+1, fbfriends, friend_images)
+                        .then(()=>{
+                            resolve();
+                        })
+                }
+            })
+        }else{
+            resolve();
+        }
+    })
+
+}
+
 async function get_place(place_id, fbfriends){
     var place_params = {
         TableName:                  "Places",
@@ -651,68 +702,41 @@ async function get_place(place_id, fbfriends){
                     var reviews = [];
                     console.log(review_ids);
                     console.log(review_ids.length);
-                    for (let i = 1; i < review_ids.length; i++) {
-                        var review_params = {
-                            TableName: "Reviews",
-                            KeyConditionExpression: "review_id = :v3",
-                            ExpressionAttributeValues: {":v3": {N: review_ids[i]}}
-                        }
-                        dynamodb.query(review_params, async (err, review) => {
-                            if (err) {
-                                console.log(`Error in querying review --> ${err}`);
-                            } else {
-                                reviews.push(review.Items[0]);
-                                console.log(review);
-                                if (fbfriends.includes(review.Items[0].postedBy.N.toString())) { // cast ID to string
-                                    weightedRating += 1.5 * review.Items[0].rating.N;
-                                    weights += 1.5;
-                                    var user_param = {
-                                        TableName: "Users",
-                                        KeyConditionExpression: "user_id = :v1",
-                                        ExpressionAttributeValues: {":v1": {N: review.Items[0].postedBy.N.toString()}}
-                                    }
-                                    dynamodb.query(user_param, async (err, user) => {
-                                        if (user.Items.length != 0) {
-                                            console.log(user);
-                                            console.log(user.Items[0]);
-                                            friend_images.push(user.Items[0].photo.S);
-                                        }
-                                    })
-                                } else {
-                                    weightedRating += review.Items[0].rating.N;
-                                    weights += 1;
-                                }
-                                let update_params = {
-                                    TableName: "Places",
-                                    Key: {"place_id": {N: place.Items[0].place_id.N}},
-                                    UpdateExpression: "set averageRating = :val",
-                                    ExpressionAttributeValues: {":val": {N: (weightedRating / weights).toString()}}
-                                }
-                                dynamodb.updateItem(update_params, (err, data) => {
-                                    if (err) {
-                                        console.log("Error in update rating");
-                                        return reject(err);
-                                    } else {
-                                        response = {
-                                            "place": place.Items[0],
-                                            "averageRating": weightedRating / weights,
-                                            "friend_images": friend_images,
-                                            "reviews": reviews // []
-                                        }
-                                        console.log(response);
-                                        // response.status(200).json(response);
-                                        //console.log("hi");
-                                        resolve(response);
-                                    }
-                                })
+                    //from here!
+                    await get_reviews(reviews, review_ids, 0, fbfriends, friend_images, weightedRating, weights)
+                        .then(()=>{
+                            let update_params = {
+                                TableName: "Places",
+                                Key: {"place_id": {N: place.Items[0].place_id.N}},
+                                UpdateExpression: "set averageRating = :val",
+                                ExpressionAttributeValues: {":val": {N: (weightedRating / weights).toString()}}
                             }
+                            dynamodb.updateItem(update_params, (err, data) => {
+                                if (err) {
+                                    console.log("Error in update rating");
+                                    return reject(err);
+                                } else {
+                                    let response = {
+                                        "place": place.Items[0],
+                                        "averageRating": weightedRating / weights,
+                                        "friend_images": friend_images,
+                                        "reviews": reviews // []
+                                    }
+                                    console.log(response);
+                                    // response.status(200).json(response);
+                                    //console.log("hi");
+                                    resolve(response);
+                                }
+                            })
                         })
+
+
 
 
                     }
 
                 }
-            }
+
         })
     })
 }
