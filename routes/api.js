@@ -6,6 +6,7 @@ const mongoose = require('mongoose');
 const User = require('../models/User');
 const Place = require('../models/Place');
 const Review = require('../models/Review');
+const Post = require('../models/Post');
 
 router.get('/', (req, res) => {
   res.send('hello world v7.0 test on 12th April 2020 ')
@@ -289,6 +290,36 @@ router.get('/search_place_if_exists', async (req, res) => {
     var customized_place = await get_place(place._id, user.friends);
     res.json(customized_place);
   });
+})
+
+////////////////////////////////////////////////
+//////////////   POST ENDPOINTS   //////////////
+////////////////////////////////////////////////
+
+router.post('/add_post', async (req, res) => {
+    console.log("Adding post");
+    var today = new Date();
+
+    let newPost = new Post({
+      dateCreated: today,
+      postedBy: req.body.user_id,
+      user_photo: req.body.user_photo,
+      body: req.body.body,
+      tags: req.body.tags,
+      suggested_places: req.body.suggested_places
+    })
+    console.log(newPost);
+    newPost.save(async (err, post) => {
+      if (err) res.status(500).send("Error saving post");
+      else res.send(`New post ${post._id} has been saved.`);
+    })
+})
+
+router.get('/get_post', async (req, res) => {
+    var post = await Post.findById(req.query.post_id);
+    if(post == null)
+         res.status(500).send("Error post doesn't exist")
+    res.json(post);
 })
 
 module.exports = router;
